@@ -1,8 +1,9 @@
+
 // --- The Complete and FINAL script.js ---
 document.addEventListener('DOMContentLoaded', () => {
     // --- !! IMPORTANT CONFIGURATION !! ---
     // PASTE THE WEB APP URL YOU COPIED FROM GOOGLE APPS SCRIPT DEPLOYMENT
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwwnKA9wEQwoXTBpx-_da0W31k823VupmD07OWqAemH7XqMdGk_svO8Xg2T7nLOUr2kPg/exec'; // <-- PASTE YOUR URL HERE
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyohaGRnQHX1heFxxT-pig_Ny0rbQ9lY0VxA_VFUh1NCnS57QwvfMVEftlvHKFjDQoakQ/exec'; // <-- PASTE YOUR URL HERE
     // PASTE THE SECRET KEY YOU SET IN THE SCRIPT PROPERTIES
     const API_KEY = '425388'; // <-- PASTE YOUR API KEY HERE
     // --- END OF CONFIGURATION ---
@@ -64,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setSyncStatus = (message, type = '', duration = 3000) => {
         syncStatus.textContent = message;
         syncStatus.className = type;
-        if (message) {
+        if (message && duration) {
             setTimeout(() => {
                 syncStatus.textContent = '';
                 syncStatus.className = '';
@@ -73,8 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const syncWithCloud = async () => {
-        if (!APPS_SCRIPT_URL || !API_KEY) {
-            alert('Cloud Sync is not configured. Please set APPS_SCRIPT_URL and API_KEY in script.js.');
+        if (!APPS_SCRIPT_URL.startsWith('https') || !API_KEY) {
+            console.warn('Cloud Sync is not configured. Please set APPS_SCRIPT_URL and API_KEY in script.js.');
             return;
         }
         if (isSyncing) return;
@@ -82,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isSyncing = true;
         syncBtn.classList.add('syncing');
         syncBtn.disabled = true;
-        setSyncStatus('Syncing...', '', 10000);
+        setSyncStatus('Syncing...', '', null); // No timeout
 
         try {
             // Step 1: Fetch current data from the cloud
@@ -99,16 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const localHistory = loadHistory();
             const localWorkouts = getWorkouts();
 
-            // Step 2: Merge local and cloud data
-            // For history, use a Map to merge and deduplicate based on timestamp
+            // Step 2: Merge local and cloud data to prevent data loss
+            // Use a Map to merge history, keyed by timestamp to handle duplicates
             const historyMap = new Map();
-            [...cloudData.history, ...localHistory].forEach(item => {
+            [...(cloudData.history || []), ...localHistory].forEach(item => {
                 historyMap.set(item.timestamp, item);
             });
             const mergedHistory = Array.from(historyMap.values()).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-            // For workouts, use a Set to merge and deduplicate
-            const mergedWorkouts = [...new Set([...cloudData.workouts, ...localWorkouts])];
+            // Use a Set to merge workouts, which naturally handles duplicates
+            const mergedWorkouts = [...new Set([...(cloudData.workouts || []), ...localWorkouts])];
 
             // Step 3: Save the merged data back to the cloud
             const savePayload = {
@@ -125,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const saveResult = await saveResponse.json();
             if (!saveResult.success) throw new Error(saveResult.error || 'Failed to save to cloud.');
 
-            // Step 4: Save the merged data locally
+            // Step 4: Save the definitive merged data locally
             saveHistory(mergedHistory);
             saveWorkouts(mergedWorkouts);
 
@@ -143,8 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // --- RENDER & LOGIC FUNCTIONS (Mostly unchanged) ---
-    // (all functions like renderHistory, renderChoices, etc. are the same)
+    // --- RENDER & LOGIC FUNCTIONS (Unchanged, but now called after sync) ---
     const updateChoiceButtonsState = () => {
         const history = loadHistory();
         const todayString = new Date().toDateString();
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateChoiceButtonsState();
     };
 
-    // --- EVENT LISTENERS ---
+    // --- EVENT LISTENERS (Updated to call syncWithCloud) ---
     syncBtn.addEventListener('click', syncWithCloud);
 
     viewLogBtnHeader.addEventListener('click', showLogView);
@@ -236,9 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- INITIALIZATION ---
     const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
-    updateUI();
-    // Automatically sync on page load if configured
-    if (APPS_SCRIPT_URL && API_KEY) {
-        syncWithCloud();
-    }
+    updateUI(); // Initial render from local storage
+    
+    // Automatically sync on page load
+    syncWithCloud();
 });
