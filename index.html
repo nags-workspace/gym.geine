@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workout Dashboard</title>
     <link rel="stylesheet" href="style.css">
-    <!-- FONT AWESOME for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css">
 </head>
 <body>
 
     <header>
         <h1>My Dashboard</h1>
-        <!-- THEME TOGGLE SWITCH -->
         <div class="theme-switch-wrapper">
             <i class="fas fa-sun"></i>
             <label class="theme-switch">
@@ -24,7 +22,7 @@
     </header>
 
     <main>
-        <!-- STATISTICS SECTION -->
+        <!-- STATISTICS SECTION (Stays at the top) -->
         <section class="stats-container">
             <div class="stat-card">
                 <h3>Streak</h3>
@@ -40,17 +38,30 @@
             </div>
         </section>
 
-        <!-- LOGGING SECTION -->
+        <!-- LOGGING SECTION (Now appears before Recent Activity) -->
         <section class="log-section">
             <h2>What did you train today?</h2>
-            <div id="workout-choices" class="choices-container">
-                <!-- Workout choice buttons will be generated here -->
-            </div>
+            <div id="workout-choices" class="choices-container"></div>
         </section>
         
+        <!-- RECENT ACTIVITY SECTION (MOVED & UPDATED) -->
+        <section class="recent-activity-section">
+            <div class="activity-card">
+                <h4>Yesterday</h4>
+                <div id="yesterday-activity" class="activity-log">
+                     <p class="placeholder">No workouts logged.</p>
+                </div>
+            </div>
+            <div class="activity-card">
+                <h4>Day Before Yesterday</h4>
+                <div id="day-before-yesterday-activity" class="activity-log">
+                     <p class="placeholder">No workouts logged.</p>
+                </div>
+            </div>
+        </section>
+
         <!-- CALENDAR SECTION -->
         <section class="calendar-section">
-            <h2>Activity Calendar</h2>
             <div class="calendar-header">
                 <button id="prev-month-btn"><i class="fas fa-chevron-left"></i></button>
                 <h3 id="current-month"></h3>
@@ -59,31 +70,32 @@
             <div class="calendar-grid-header">
                 <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
             </div>
-            <div id="calendar-grid" class="calendar-grid">
-                <!-- Calendar days will be generated here -->
-            </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
         </section>
 
-        <!-- CHART SECTION -->
+        <!-- Chart and History sections remain in the same order -->
         <section class="chart-section">
             <h2>Workout Frequency</h2>
             <canvas id="workout-chart"></canvas>
         </section>
-
-        <!-- HISTORY SECTION -->
         <section class="history-section">
             <h2>Workout History</h2>
-            <ul id="history-list">
-                <!-- Logged items will appear here -->
-            </ul>
+            <ul id="history-list"></ul>
         </section>
         
         <button id="clear-history">Clear All History</button>
     </main>
 
-    <!-- CHART.JS Library -->
+    <!-- MODAL (No changes here) -->
+    <div id="modal-container" class="modal-container">
+        <div class="modal-content">
+            <button class="close-modal-btn" id="close-modal-btn">&times;</button>
+            <h3 id="modal-date"></h3>
+            <ul id="modal-list"></ul>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Our main script file -->
     <script src="script.js"></script>
 </body>
 </html>

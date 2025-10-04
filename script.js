@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURATION & ELEMENTS ---
-    const WORKOUTS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps'];
+    const WORKOUTS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Abs'];
     const choicesContainer = document.getElementById('workout-choices');
     const historyList = document.getElementById('history-list');
     const clearHistoryBtn = document.getElementById('clear-history');
@@ -12,11 +12,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthStat = document.getElementById('month-stat');
     const favoriteStat = document.getElementById('favorite-stat');
 
+    // **UPDATED** Recent Activity Elements
+    const yesterdayActivityEl = document.getElementById('yesterday-activity');
+    const dayBeforeYesterdayActivityEl = document.getElementById('day-before-yesterday-activity');
+
     // Calendar Elements
     const currentMonthEl = document.getElementById('current-month');
     const calendarGrid = document.getElementById('calendar-grid');
     const prevMonthBtn = document.getElementById('prev-month-btn');
     const nextMonthBtn = document.getElementById('next-month-btn');
+
+    // Modal Elements
+    const modalContainer = document.getElementById('modal-container');
+    const modalDateEl = document.getElementById('modal-date');
+    const modalListEl = document.getElementById('modal-list');
+    const closeModalBtn = document.getElementById('close-modal-btn');
 
     // Chart Element
     const chartCanvas = document.getElementById('workout-chart').getContext('2d');
@@ -24,19 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let calendarDate = new Date();
 
     // --- DATA HANDLING ---
-    const loadHistory = () => JSON.parse(localStorage.getItem('workoutHistoryV2')) || [];
-    const saveHistory = (history) => localStorage.setItem('workoutHistoryV2', JSON.stringify(history));
+    const loadHistory = () => JSON.parse(localStorage.getItem('workoutHistoryV3')) || [];
+    const saveHistory = (history) => localStorage.setItem('workoutHistoryV3', JSON.stringify(history));
 
     // --- THEME HANDLING ---
     const applyTheme = (theme) => {
         document.body.classList.toggle('light-mode', theme === 'light');
         themeToggle.checked = theme === 'light';
         localStorage.setItem('theme', theme);
-        // Re-render chart with correct colors
         if (workoutChart) renderChart();
     };
     
-    // --- STATISTICS CALCULATION ---
+    // --- STATISTICS CALCULATION (No changes needed here) ---
     const calculateStats = () => {
         const history = loadHistory();
         
@@ -44,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const workoutsThisMonth = history.filter(item => {
             const itemDate = new Date(item.timestamp);
-            return itemDate.getFullYear() === now.getFullYear() && itemDate.getMonth() === now.getMonth();
+            return item.workoutName !== 'Rest Day' && itemDate.getFullYear() === now.getFullYear() && itemDate.getMonth() === now.getMonth();
         }).length;
         monthStat.textContent = workoutsThisMonth;
 
@@ -76,7 +85,35 @@ document.addEventListener('DOMContentLoaded', () => {
         streakStat.textContent = streak;
     };
 
-    // --- CALENDAR RENDERING ---
+    // --- **UPDATED** RECENT ACTIVITY RENDERING ---
+    const renderRecentActivity = () => {
+        const history = loadHistory();
+        // Calculate dates for yesterday and the day before
+        const yesterday = new Date(Date.now() - 86400000).toDateString();
+        const dayBeforeYesterday = new Date(Date.now() - 2 * 86400000).toDateString();
+    
+        const yesterdayWorkouts = history.filter(item => new Date(item.timestamp).toDateString() === yesterday);
+        const dayBeforeYesterdayWorkouts = history.filter(item => new Date(item.timestamp).toDateString() === dayBeforeYesterday);
+    
+        const populateActivityLog = (element, workouts) => {
+            element.innerHTML = '';
+            if (workouts.length > 0) {
+                workouts.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'activity-log-item';
+                    div.textContent = item.workoutName;
+                    element.appendChild(div);
+                });
+            } else {
+                element.innerHTML = `<p class="placeholder">No workouts logged.</p>`;
+            }
+        };
+    
+        populateActivityLog(yesterdayActivityEl, yesterdayWorkouts);
+        populateActivityLog(dayBeforeYesterdayActivityEl, dayBeforeYesterdayWorkouts);
+    };
+
+    // --- CALENDAR RENDERING (No changes needed here) ---
     const renderCalendar = () => {
         const history = loadHistory();
         const workoutDays = new Set(history.map(item => new Date(item.timestamp).toDateString()));
@@ -90,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstDayOfMonth = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         
-        // Create days
         for (let i = 0; i < firstDayOfMonth; i++) {
             calendarGrid.appendChild(document.createElement('div'));
         }
@@ -101,6 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dayEl.textContent = i;
             
             const thisDate = new Date(year, month, i);
+            dayEl.dataset.date = thisDate.toDateString(); 
+
             if (thisDate.toDateString() === new Date().toDateString()) {
                 dayEl.classList.add('today');
             }
@@ -112,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // --- CHART RENDERING ---
+    // --- CHART RENDERING (No changes needed here) ---
     const renderChart = () => {
         const history = loadHistory();
         const theme = localStorage.getItem('theme') || 'dark';
@@ -122,16 +160,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return history.filter(item => item.workoutName === workout).length;
         });
 
-        if (workoutChart) {
-            workoutChart.destroy();
-        }
+        if (workoutChart) workoutChart.destroy();
 
         workoutChart = new Chart(chartCanvas, {
             type: 'bar',
             data: {
                 labels: WORKOUTS,
                 datasets: [{
-                    label: '# of Workouts',
+                    label: '# of Sessions',
                     data: data,
                     backgroundColor: 'rgba(0, 191, 255, 0.5)',
                     borderColor: 'rgba(0, 191, 255, 1)',
@@ -142,19 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { color: textColor, stepSize: 1 }
-                    },
-                    x: {
-                        ticks: { color: textColor }
-                    }
+                    y: { beginAtZero: true, ticks: { color: textColor, stepSize: 1 } },
+                    x: { ticks: { color: textColor } }
                 }
             }
         });
     };
     
-    // --- MAIN RENDER FUNCTIONS ---
+    // --- HISTORY LIST RENDERING (No changes needed here) ---
     const renderHistory = () => {
         const history = loadHistory();
         historyList.innerHTML = '';
@@ -170,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- WORKOUT CHOICES RENDERING (No changes needed here) ---
     const renderChoices = () => {
         choicesContainer.innerHTML = '';
         const allChoices = [...WORKOUTS, 'Rest Day'];
@@ -182,15 +214,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
-    // --- MASTER UPDATE FUNCTION ---
+    // --- MODAL CONTROL (No changes needed here) ---
+    const showModal = (date) => {
+        const history = loadHistory();
+        const workoutsOnDate = history.filter(item => new Date(item.timestamp).toDateString() === date.toDateString());
+        
+        modalDateEl.textContent = date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        modalListEl.innerHTML = '';
+    
+        if (workoutsOnDate.length > 0) {
+            workoutsOnDate.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item.workoutName;
+                modalListEl.appendChild(li);
+            });
+        }
+    
+        modalContainer.classList.add('show');
+    };
+    
+    const hideModal = () => {
+        modalContainer.classList.remove('show');
+    };
+
+    // --- MASTER UPDATE FUNCTION (No changes needed here) ---
     const updateUI = () => {
         renderHistory();
         calculateStats();
         renderCalendar();
         renderChart();
+        renderRecentActivity();
     };
     
-    // --- EVENT LISTENERS ---
+    // --- EVENT LISTENERS (No changes needed here) ---
     choicesContainer.addEventListener('click', (e) => {
         if (e.target.classList.contains('workout-choice')) {
             const workoutName = e.target.dataset.workout;
@@ -202,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     clearHistoryBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete all workout history?')) {
+        if (confirm('Are you sure you want to delete all workout history? This cannot be undone.')) {
             saveHistory([]);
             updateUI();
         }
@@ -220,6 +276,20 @@ document.addEventListener('DOMContentLoaded', () => {
     nextMonthBtn.addEventListener('click', () => {
         calendarDate.setMonth(calendarDate.getMonth() + 1);
         renderCalendar();
+    });
+
+    calendarGrid.addEventListener('click', (e) => {
+        if (e.target.classList.contains('has-workout')) {
+            const dateString = e.target.dataset.date;
+            showModal(new Date(dateString));
+        }
+    });
+
+    closeModalBtn.addEventListener('click', hideModal);
+    modalContainer.addEventListener('click', (e) => {
+        if (e.target === modalContainer) {
+            hideModal();
+        }
     });
 
     // --- INITIALIZATION ---
