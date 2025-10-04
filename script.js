@@ -3,7 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- !! IMPORTANT CONFIGURATION !! ---
     // PASTE THE WEB APP URL YOU COPIED FROM GOOGLE APPS SCRIPT DEPLOYMENT
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyohaGRnQHX1heFxxT-pig_Ny0rbQ9lY0VxA_VFUh1NCnS57QwvfMVEftlvHKFjDQoakQ/exec'; // <-- PASTE YOUR URL HERE
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw0dKPEhaFSdZqIWO3nid60OSASA_f52wv62ptGsINnwXFqESrcIOotN4Q9T9wZdk6_Aw/exec'; // <-- PASTE YOUR URL HERE
     // PASTE THE SECRET KEY YOU SET IN THE SCRIPT PROPERTIES
     const API_KEY = '425388'; // <-- PASTE YOUR API KEY HERE
     // --- END OF CONFIGURATION ---
