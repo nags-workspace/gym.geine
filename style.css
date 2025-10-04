@@ -509,3 +509,37 @@ input:checked + .slider:before {
     background-color: var(--border-color); /* Prevents hover effect */
     color: var(--text-muted);
 }
+
+
+
+/* --- ADD THIS TO THE END OF style.css --- */
+
+/* --- SYNC STYLES --- */
+.sync-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#sync-status {
+    font-size: 0.8em;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+#sync-status.success {
+    color: var(--success-color);
+}
+
+#sync-status.error {
+    color: #dc3545;
+}
+
+#sync-btn.syncing .fa-sync-alt {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

@@ -1,56 +1,13 @@
-// Replace your entire script.js with this final, complete version.
-
+// --- The Complete and FINAL script.js ---
 document.addEventListener('DOMContentLoaded', () => {
+    // --- !! IMPORTANT CONFIGURATION !! ---
+    // PASTE THE WEB APP URL YOU COPIED FROM GOOGLE APPS SCRIPT DEPLOYMENT
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwwnKA9wEQwoXTBpx-_da0W31k823VupmD07OWqAemH7XqMdGk_svO8Xg2T7nLOUr2kPg/exec'; // <-- PASTE YOUR URL HERE
+    // PASTE THE SECRET KEY YOU SET IN THE SCRIPT PROPERTIES
+    const API_KEY = '425388'; // <-- PASTE YOUR API KEY HERE
+    // --- END OF CONFIGURATION ---
 
-    // --- ELEMENTS ---
-    // (All element references are the same as the previous version)
-
-    // --- VIEW SWITCHING ---
-    // (showDashboard and showLogView functions are the same)
-
-    // --- CORE LOGIC & RENDER FUNCTIONS ---
-    // (All data handling and render functions are the same)
-
-    // --- MASTER UPDATE FUNCTION ---
-    const updateUI = () => {
-        renderChoices();
-        renderHistory();
-        calculateStats();
-        renderCalendar();
-        renderChart();
-        renderRecentActivity();
-        updateChoiceButtonsState();
-    };
-
-    // --- EVENT LISTENERS ---
-
-    // **NEW** COLLAPSIBLE SECTIONS LISTENER
-    document.addEventListener('click', e => {
-        const header = e.target.closest('.collapsible-header');
-        if (!header) return;
-
-        const content = header.nextElementSibling;
-        if (!content || !content.classList.contains('collapsible-content')) return;
-
-        // Toggle the active state
-        header.classList.toggle('active');
-
-        if (content.style.maxHeight) {
-            // If it's open, close it
-            content.style.maxHeight = null;
-        } else {
-            // If it's closed, open it to its full content height
-            content.style.maxHeight = content.scrollHeight + 'px';
-        }
-    });
-
-    // All other event listeners remain exactly the same
-    // I am pasting the full, final, working script.js below for your convenience.
-});
-
-
-// --- The Complete script.js (Copy and paste this entire block) ---
-document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM ELEMENTS ---
     const dashboardView = document.getElementById('dashboard-view');
     const logView = document.getElementById('log-view');
     const viewLogBtnHeader = document.getElementById('view-log-btn-header');
@@ -85,19 +42,109 @@ document.addEventListener('DOMContentLoaded', () => {
     const editWorkoutSelect = document.getElementById('edit-workout-select');
     const saveLogChangeBtn = document.getElementById('save-log-change-btn');
     const deleteLogEntryBtn = document.getElementById('delete-log-entry-btn');
+    const syncBtn = document.getElementById('sync-btn');
+    const syncStatus = document.getElementById('sync-status');
 
     let workoutChart;
     let calendarDate = new Date();
+    let isSyncing = false;
 
+    // --- LOCAL DATA HANDLING ---
     const loadHistory = () => JSON.parse(localStorage.getItem('workoutHistoryV3')) || [];
     const saveHistory = (history) => localStorage.setItem('workoutHistoryV3', JSON.stringify(history));
     const getDefaultWorkouts = () => ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Abs'];
     const getWorkouts = () => JSON.parse(localStorage.getItem('customWorkouts')) || getDefaultWorkouts();
     const saveWorkouts = (workouts) => localStorage.setItem('customWorkouts', JSON.stringify(workouts));
 
+    // --- VIEW SWITCHING ---
     const showDashboard = () => { dashboardView.classList.remove('hidden'); logView.classList.add('hidden'); };
     const showLogView = () => { dashboardView.classList.add('hidden'); logView.classList.remove('hidden'); };
 
+    // --- CLOUD SYNC LOGIC ---
+    const setSyncStatus = (message, type = '', duration = 3000) => {
+        syncStatus.textContent = message;
+        syncStatus.className = type;
+        if (message) {
+            setTimeout(() => {
+                syncStatus.textContent = '';
+                syncStatus.className = '';
+            }, duration);
+        }
+    };
+
+    const syncWithCloud = async () => {
+        if (!APPS_SCRIPT_URL || !API_KEY) {
+            alert('Cloud Sync is not configured. Please set APPS_SCRIPT_URL and API_KEY in script.js.');
+            return;
+        }
+        if (isSyncing) return;
+
+        isSyncing = true;
+        syncBtn.classList.add('syncing');
+        syncBtn.disabled = true;
+        setSyncStatus('Syncing...', '', 10000);
+
+        try {
+            // Step 1: Fetch current data from the cloud
+            const loadResponse = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain', 'x-api-key': API_KEY },
+                body: JSON.stringify({ action: 'load' }),
+            });
+            if (!loadResponse.ok) throw new Error(`Cloud returned status ${loadResponse.status}`);
+            const cloudResult = await loadResponse.json();
+            if (!cloudResult.success) throw new Error(cloudResult.error || 'Failed to load from cloud.');
+            
+            const cloudData = cloudResult.data;
+            const localHistory = loadHistory();
+            const localWorkouts = getWorkouts();
+
+            // Step 2: Merge local and cloud data
+            // For history, use a Map to merge and deduplicate based on timestamp
+            const historyMap = new Map();
+            [...cloudData.history, ...localHistory].forEach(item => {
+                historyMap.set(item.timestamp, item);
+            });
+            const mergedHistory = Array.from(historyMap.values()).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            // For workouts, use a Set to merge and deduplicate
+            const mergedWorkouts = [...new Set([...cloudData.workouts, ...localWorkouts])];
+
+            // Step 3: Save the merged data back to the cloud
+            const savePayload = {
+                history: mergedHistory,
+                workouts: mergedWorkouts,
+            };
+
+            const saveResponse = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain', 'x-api-key': API_KEY },
+                body: JSON.stringify({ action: 'save', payload: savePayload }),
+            });
+            if (!saveResponse.ok) throw new Error(`Cloud save returned status ${saveResponse.status}`);
+            const saveResult = await saveResponse.json();
+            if (!saveResult.success) throw new Error(saveResult.error || 'Failed to save to cloud.');
+
+            // Step 4: Save the merged data locally
+            saveHistory(mergedHistory);
+            saveWorkouts(mergedWorkouts);
+
+            // Step 5: Update UI with the synced data
+            updateUI();
+            setSyncStatus('Synced!', 'success');
+
+        } catch (error) {
+            console.error('Sync failed:', error);
+            setSyncStatus('Sync Error!', 'error');
+        } finally {
+            isSyncing = false;
+            syncBtn.classList.remove('syncing');
+            syncBtn.disabled = false;
+        }
+    };
+    
+    // --- RENDER & LOGIC FUNCTIONS (Mostly unchanged) ---
+    // (all functions like renderHistory, renderChoices, etc. are the same)
     const updateChoiceButtonsState = () => {
         const history = loadHistory();
         const todayString = new Date().toDateString();
@@ -114,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     };
-
     const renderHistory = () => {
         const history = loadHistory();
         historyList.innerHTML = '';
@@ -137,10 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
             historyList.appendChild(dateCard);
         });
     };
-
     const renderChoices = () => { choicesContainer.innerHTML = ''; [...getWorkouts(), 'Rest Day'].forEach(w => { const btn = document.createElement('button'); btn.className = `workout-choice ${w === 'Rest Day' ? 'rest-day' : ''}`; btn.textContent = w; btn.dataset.workout = w; choicesContainer.appendChild(btn); }); };
     const applyTheme = (theme) => { document.body.classList.toggle('light-mode', theme === 'light'); themeToggle.checked = theme === 'light'; localStorage.setItem('theme', theme); if (workoutChart) renderChart(); };
-    const calculateStats = () => { const history = loadHistory(); const now = new Date(); const workoutsThisMonth = history.filter(item => { const itemDate = new Date(item.timestamp); return item.workoutName !== 'Rest Day' && itemDate.getFullYear() === now.getFullYear() && itemDate.getMonth() === now.getMonth(); }).length; monthStat.textContent = workoutsThisMonth; const workoutCounts = history.reduce((acc, item) => { if (item.workoutName !== 'Rest Day') acc[item.workoutName] = (acc[item.workoutName] || 0) + 1; return acc; }, {}); const favorite = Object.keys(workoutCounts).reduce((a, b) => workoutCounts[a] > workoutCounts[b] ? a : b, '-'); favoriteStat.textContent = favorite; let streak = 0; if (history.length > 0) { const uniqueDays = [...new Set(history.map(item => new Date(item.timestamp).toDateString()))]; let today = new Date(); if (uniqueDays.includes(today.toDateString())) { streak = 1; let yesterday = new Date(); yesterday.setDate(today.getDate() - 1); while (uniqueDays.includes(yesterday.toDateString())) { streak++; yesterday.setDate(yesterday.getDate() - 1); } } } streakStat.textContent = streak; };
+    const calculateStats = () => { const history = loadHistory(); const now = new Date(); const workoutsThisMonth = history.filter(item => { const itemDate = new Date(item.timestamp); return item.workoutName !== 'Rest Day' && itemDate.getFullYear() === now.getFullYear() && itemDate.getMonth() === now.getMonth(); }).length; monthStat.textContent = workoutsThisMonth; const workoutCounts = history.reduce((acc, item) => { if (item.workoutName !== 'Rest Day') acc[item.workoutName] = (acc[item.workoutName] || 0) + 1; return acc; }, {}); const favorite = Object.keys(workoutCounts).reduce((a, b) => workoutCounts[a] > workoutCounts[b] ? a : b, '-'); favoriteStat.textContent = favorite; let streak = 0; if (history.length > 0) { const uniqueDays = [...new Set(history.filter(i => i.workoutName !== 'Rest Day').map(item => new Date(item.timestamp).toDateString()))]; let today = new Date(); if (uniqueDays.includes(today.toDateString())) { streak = 1; let yesterday = new Date(); yesterday.setDate(today.getDate() - 1); while (uniqueDays.includes(yesterday.toDateString())) { streak++; yesterday.setDate(yesterday.getDate() - 1); } } } streakStat.textContent = streak; };
     const renderRecentActivity = () => { const history = loadHistory(); const yesterday = new Date(Date.now() - 86400000).toDateString(); const dayBeforeYesterday = new Date(Date.now() - 2 * 86400000).toDateString(); const yesterdayWorkouts = history.filter(item => new Date(item.timestamp).toDateString() === yesterday); const dayBeforeYesterdayWorkouts = history.filter(item => new Date(item.timestamp).toDateString() === dayBeforeYesterday); const populateActivityLog = (element, workouts) => { element.innerHTML = ''; if (workouts.length > 0) { workouts.forEach(item => { const div = document.createElement('div'); div.className = 'activity-log-item'; div.textContent = item.workoutName; element.appendChild(div); }); } else { element.innerHTML = `<p class="placeholder">No workouts logged.</p>`; } }; populateActivityLog(yesterdayActivityEl, yesterdayWorkouts); populateActivityLog(dayBeforeYesterdayActivityEl, dayBeforeYesterdayWorkouts); };
     const renderCalendar = () => { const history = loadHistory(); const workoutDays = new Set(history.map(item => new Date(item.timestamp).toDateString())); calendarGrid.innerHTML = ''; const month = calendarDate.getMonth(); const year = calendarDate.getFullYear(); currentMonthEl.textContent = `${calendarDate.toLocaleString('default', { month: 'long' })} ${year}`; const firstDayOfMonth = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); for (let i = 0; i < firstDayOfMonth; i++) { calendarGrid.appendChild(document.createElement('div')); } for (let i = 1; i <= daysInMonth; i++) { const dayEl = document.createElement('div'); dayEl.className = 'calendar-day'; dayEl.textContent = i; const thisDate = new Date(year, month, i); dayEl.dataset.date = thisDate.toDateString(); if (thisDate.toDateString() === new Date().toDateString()) { dayEl.classList.add('today'); } if (workoutDays.has(thisDate.toDateString())) { dayEl.classList.add('has-workout'); } calendarGrid.appendChild(dayEl); } };
     const renderChart = () => { const history = loadHistory(); const workouts = getWorkouts(); const theme = localStorage.getItem('theme') || 'dark'; const textColor = theme === 'light' ? '#333' : '#e0e0e0'; const data = workouts.map(w => history.filter(i => i.workoutName === w).length); if (workoutChart) workoutChart.destroy(); workoutChart = new Chart(chartCanvas, { type: 'bar', data: { labels: workouts, datasets: [{ label: '# of Sessions', data, backgroundColor: 'rgba(0, 191, 255, 0.5)', borderColor: 'rgba(0, 191, 255, 1)', borderWidth: 1 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: textColor, stepSize: 1 } }, x: { ticks: { color: textColor } } } } }); };
@@ -150,9 +195,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideEditWorkoutsModal = () => editWorkoutsModal.classList.remove('show');
     const showEditLogModal = (timestamp) => { const logEntry = loadHistory().find(item => item.timestamp === timestamp); if (!logEntry) return; editLogModal.dataset.timestamp = timestamp; editLogTimeEl.textContent = `Logged on: ${new Date(logEntry.timestamp).toLocaleString()}`; editWorkoutSelect.innerHTML = ''; [...getWorkouts(), 'Rest Day'].forEach(w => { const option = document.createElement('option'); option.value = w; option.textContent = w; if (w === logEntry.workoutName) option.selected = true; editWorkoutSelect.appendChild(option); }); editLogModal.classList.add('show'); };
     const hideEditLogModal = () => editLogModal.classList.remove('show');
-    const saveLogChange = () => { const timestamp = editLogModal.dataset.timestamp; const newWorkoutName = editWorkoutSelect.value; let history = loadHistory(); const entryIndex = history.findIndex(item => item.timestamp === timestamp); if (entryIndex > -1) { history[entryIndex].workoutName = newWorkoutName; saveHistory(history); updateUI(); hideEditLogModal(); } };
-    const deleteLogEntry = () => { const timestamp = editLogModal.dataset.timestamp; if (confirm('Are you sure you want to delete this entry?')) { let history = loadHistory().filter(item => item.timestamp !== timestamp); saveHistory(history); updateUI(); hideEditLogModal(); } };
+    const saveLogChange = () => { const timestamp = editLogModal.dataset.timestamp; const newWorkoutName = editWorkoutSelect.value; let history = loadHistory(); const entryIndex = history.findIndex(item => item.timestamp === timestamp); if (entryIndex > -1) { history[entryIndex].workoutName = newWorkoutName; saveHistory(history); updateUI(); hideEditLogModal(); syncWithCloud(); } };
+    const deleteLogEntry = () => { const timestamp = editLogModal.dataset.timestamp; if (confirm('Are you sure you want to delete this entry?')) { let history = loadHistory().filter(item => item.timestamp !== timestamp); saveHistory(history); updateUI(); hideEditLogModal(); syncWithCloud(); } };
     
+    // --- MASTER UPDATE FUNCTION ---
     const updateUI = () => {
         renderChoices();
         renderHistory();
@@ -163,24 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateChoiceButtonsState();
     };
 
-    document.addEventListener('click', e => {
-        const header = e.target.closest('.collapsible-header');
-        if (!header) return;
-        const content = header.nextElementSibling;
-        if (!content || !content.classList.contains('collapsible-content')) return;
-        header.classList.toggle('active');
-        if (content.style.maxHeight) {
-            content.style.maxHeight = null;
-        } else {
-            content.style.maxHeight = content.scrollHeight + 'px';
-        }
-    });
+    // --- EVENT LISTENERS ---
+    syncBtn.addEventListener('click', syncWithCloud);
 
     viewLogBtnHeader.addEventListener('click', showLogView);
     backToDashboardBtn.addEventListener('click', showDashboard);
-    choicesContainer.addEventListener('click', e => { if (e.target.classList.contains('workout-choice') && !e.target.disabled) { const workoutName = e.target.dataset.workout; const history = loadHistory(); history.push({ workoutName, timestamp: new Date().toISOString() }); saveHistory(history); updateUI(); }});
+    choicesContainer.addEventListener('click', e => { if (e.target.classList.contains('workout-choice') && !e.target.disabled) { const workoutName = e.target.dataset.workout; const history = loadHistory(); history.push({ workoutName, timestamp: new Date().toISOString() }); saveHistory(history); updateUI(); syncWithCloud(); }});
     historyList.addEventListener('click', e => { const editButton = e.target.closest('.edit-log-btn'); if (editButton) showEditLogModal(editButton.dataset.timestamp); });
-    clearHistoryBtn.addEventListener('click', () => { if (confirm('Are you sure you want to delete all history?')) { saveHistory([]); updateUI(); }});
+    clearHistoryBtn.addEventListener('click', () => { if (confirm('Are you sure you want to delete all history? This will also clear cloud data on next sync.')) { saveHistory([]); updateUI(); syncWithCloud(); }});
     closeEditLogModalBtn.addEventListener('click', hideEditLogModal);
     editLogModal.addEventListener('click', e => { if (e.target === editLogModal) hideEditLogModal(); });
     saveLogChangeBtn.addEventListener('click', saveLogChange);
@@ -194,10 +230,15 @@ document.addEventListener('DOMContentLoaded', () => {
     editWorkoutsBtn.addEventListener('click', showEditWorkoutsModal);
     closeEditModalBtn.addEventListener('click', hideEditWorkoutsModal);
     editWorkoutsModal.addEventListener('click', e => { if (e.target === editWorkoutsModal) hideEditWorkoutsModal(); });
-    addWorkoutForm.addEventListener('submit', e => { e.preventDefault(); const newName = newWorkoutNameInput.value.trim(); if (newName) { let workouts = getWorkouts(); if (!workouts.includes(newName)) { workouts.push(newName); saveWorkouts(workouts); showEditWorkoutsModal(); updateUI(); } newWorkoutNameInput.value = ''; } });
-    customWorkoutsList.addEventListener('click', e => { if (e.target.classList.contains('delete-workout-btn')) { const workoutToDelete = e.target.dataset.workout; let workouts = getWorkouts().filter(w => w !== workoutToDelete); saveWorkouts(workouts); showEditWorkoutsModal(); updateUI(); } });
+    addWorkoutForm.addEventListener('submit', e => { e.preventDefault(); const newName = newWorkoutNameInput.value.trim(); if (newName) { let workouts = getWorkouts(); if (!workouts.includes(newName)) { workouts.push(newName); saveWorkouts(workouts); showEditWorkoutsModal(); updateUI(); syncWithCloud(); } newWorkoutNameInput.value = ''; } });
+    customWorkoutsList.addEventListener('click', e => { if (e.target.classList.contains('delete-workout-btn')) { const workoutToDelete = e.target.dataset.workout; let workouts = getWorkouts().filter(w => w !== workoutToDelete); saveWorkouts(workouts); showEditWorkoutsModal(); updateUI(); syncWithCloud(); } });
 
+    // --- INITIALIZATION ---
     const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
     updateUI();
+    // Automatically sync on page load if configured
+    if (APPS_SCRIPT_URL && API_KEY) {
+        syncWithCloud();
+    }
 });
