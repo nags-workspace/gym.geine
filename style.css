@@ -241,3 +241,86 @@ input:checked + .slider:before { transform: translateX(24px); }
 #modal-list li:last-child {
     border-bottom: none;
 }
+
+/* Add these new styles to your existing style.css file. */
+/* A good place is after the calendar styles and before the modal styles. */
+
+/* --- Section Header with Icon Button --- */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px; /* Replaces h2 margin-bottom */
+}
+.section-header h2 {
+    margin-bottom: 0;
+}
+.icon-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+}
+.icon-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+
+/* --- Edit Workouts Modal List --- */
+#custom-workouts-list {
+    list-style: none;
+    margin-bottom: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+#custom-workouts-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--background-color);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+.delete-workout-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 24px; /* Vertically center the 'X' */
+    text-align: center;
+}
+
+/* --- Edit Workouts Modal Form --- */
+.add-workout-form {
+    display: flex;
+    gap: 10px;
+}
+.add-workout-form input {
+    flex-grow: 1;
+    padding: 10px;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+}
+.add-workout-form button {
+    padding: 10px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}

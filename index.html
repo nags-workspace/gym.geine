@@ -22,45 +22,35 @@
     </header>
 
     <main>
-        <!-- STATISTICS SECTION (Stays at the top) -->
+        <!-- Statistics Section -->
         <section class="stats-container">
-            <div class="stat-card">
-                <h3>Streak</h3>
-                <p><i class="fas fa-fire"></i> <span id="streak-stat">0</span> Days</p>
-            </div>
-            <div class="stat-card">
-                <h3>This Month</h3>
-                <p><i class="fas fa-calendar-check"></i> <span id="month-stat">0</span> Workouts</p>
-            </div>
-            <div class="stat-card">
-                <h3>Favorite</h3>
-                <p><i class="fas fa-star"></i> <span id="favorite-stat">-</span></p>
-            </div>
+            <div class="stat-card"><h3>Streak</h3><p><i class="fas fa-fire"></i> <span id="streak-stat">0</span> Days</p></div>
+            <div class="stat-card"><h3>This Month</h3><p><i class="fas fa-calendar-check"></i> <span id="month-stat">0</span> Workouts</p></div>
+            <div class="stat-card"><h3>Favorite</h3><p><i class="fas fa-star"></i> <span id="favorite-stat">-</span></p></div>
         </section>
 
-        <!-- LOGGING SECTION (Now appears before Recent Activity) -->
+        <!-- Logging Section with **NEW** Edit Button -->
         <section class="log-section">
-            <h2>What did you train today?</h2>
+            <div class="section-header">
+                <h2>What did you train today?</h2>
+                <button id="edit-workouts-btn" class="icon-btn" title="Edit Workouts"><i class="fas fa-pencil-alt"></i></button>
+            </div>
             <div id="workout-choices" class="choices-container"></div>
         </section>
         
-        <!-- RECENT ACTIVITY SECTION (MOVED & UPDATED) -->
+        <!-- Recent Activity Section -->
         <section class="recent-activity-section">
             <div class="activity-card">
                 <h4>Yesterday</h4>
-                <div id="yesterday-activity" class="activity-log">
-                     <p class="placeholder">No workouts logged.</p>
-                </div>
+                <div id="yesterday-activity" class="activity-log"><p class="placeholder">No workouts logged.</p></div>
             </div>
             <div class="activity-card">
                 <h4>Day Before Yesterday</h4>
-                <div id="day-before-yesterday-activity" class="activity-log">
-                     <p class="placeholder">No workouts logged.</p>
-                </div>
+                <div id="day-before-yesterday-activity" class="activity-log"><p class="placeholder">No workouts logged.</p></div>
             </div>
         </section>
 
-        <!-- CALENDAR SECTION -->
+        <!-- Calendar Section -->
         <section class="calendar-section">
             <div class="calendar-header">
                 <button id="prev-month-btn"><i class="fas fa-chevron-left"></i></button>
@@ -73,25 +63,34 @@
             <div id="calendar-grid" class="calendar-grid"></div>
         </section>
 
-        <!-- Chart and History sections remain in the same order -->
-        <section class="chart-section">
-            <h2>Workout Frequency</h2>
-            <canvas id="workout-chart"></canvas>
-        </section>
-        <section class="history-section">
-            <h2>Workout History</h2>
-            <ul id="history-list"></ul>
-        </section>
+        <!-- Chart and History Sections -->
+        <section class="chart-section"><h2>Workout Frequency</h2><canvas id="workout-chart"></canvas></section>
+        <section class="history-section"><h2>Workout History</h2><ul id="history-list"></ul></section>
         
         <button id="clear-history">Clear All History</button>
     </main>
 
-    <!-- MODAL (No changes here) -->
+    <!-- Calendar Day Modal (no changes) -->
     <div id="modal-container" class="modal-container">
         <div class="modal-content">
             <button class="close-modal-btn" id="close-modal-btn">&times;</button>
             <h3 id="modal-date"></h3>
             <ul id="modal-list"></ul>
+        </div>
+    </div>
+    
+    <!-- **NEW** EDIT WORKOUTS MODAL -->
+    <div id="edit-workouts-modal-container" class="modal-container">
+        <div class="modal-content">
+            <button class="close-modal-btn" id="close-edit-modal-btn">&times;</button>
+            <h3>Manage Workouts</h3>
+            <ul id="custom-workouts-list">
+                <!-- List of editable workouts will be generated here -->
+            </ul>
+            <form id="add-workout-form" class="add-workout-form">
+                <input type="text" id="new-workout-name" placeholder="New workout name..." required>
+                <button type="submit">Add</button>
+            </form>
         </div>
     </div>
 
