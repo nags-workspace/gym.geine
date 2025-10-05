@@ -1,96 +1,52 @@
-import { NhostClient } from 'https://esm.sh/@nhost/nhost-js'
-
 // ===================================================================
-// YOUR SPECIFIC PROJECT INFO FOR NHOST v4
+// PASTE YOUR API KEY AND YOUR BIN ID IS ALREADY HERE
 // ===================================================================
-const NHOST_SUBDOMAIN = 'selzxrsfvcgyshuwvlrn'; 
-const NHOST_REGION = 'ap-south-1';
+const API_KEY = 'PASTE_YOUR_API_KEY_HERE';
+const BIN_ID = '68e2270dae596e708f0692a6';
 // ===================================================================
 
-// Initialize the Nhost client using the new v4 method
-const nhost = new NhostClient({
-  subdomain: NHOST_SUBDOMAIN,
-  region: NHOST_REGION
-});
+const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const MASTER_KEY_HEADER = { 'X-Master-Key': API_KEY };
 
 /**
- * Fetches all workout history from the Nhost database.
+ * Fetches the entire workout history array from the bin.
  */
 async function loadData() {
-    console.log("Loading data from Nhost...");
-    const { data, error } = await nhost.graphql.request(`
-        query {
-            workouts(order_by: {timestamp: desc}) {
-                id
-                timestamp
-                workout
-            }
-        }
-    `);
-
-    if (error) {
-        console.error('Error loading data:', error);
-        alert("Could not load data from the cloud. Please check your Nhost permissions and URL.");
+    console.log("Loading data from JSONBin.io...");
+    try {
+        const response = await fetch(`${API_URL}/latest`, { headers: MASTER_KEY_HEADER });
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const data = await response.json();
+        // The data is stored inside a "record" property
+        return data.record;
+    } catch (error) {
+        console.error("Failed to load data:", error);
+        alert("Could not load data. Please check your JSONBin.io API Key and Bin ID.");
         return [];
     }
-    // The timestamp comes back as a string, so we convert it to a number
-    return data.workouts.map(item => ({...item, timestamp: Number(item.timestamp)}));
 }
 
 /**
- * Saves a new workout log entry.
+ * Saves the entire workout history array to the bin, overwriting it.
  */
-async function createWorkoutLog(logEntry) {
-    const { data, error } = await nhost.graphql.request(`
-        mutation ($timestamp: bigint!, $workout: String!) {
-            insert_workouts_one(object: {timestamp: $timestamp, workout: $workout}) {
-                id
-            }
-        }
-    `, {
-        timestamp: logEntry.timestamp,
-        workout: logEntry.workout
-    });
-
-    if (error) console.error('Error creating log:', error);
-    return { data, error };
+async function saveData(historyArray) {
+    console.log("Saving data to JSONBin.io...");
+    try {
+        const response = await fetch(API_URL, {
+            method: 'PUT',
+            headers: {
+                ...MASTER_KEY_HEADER,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(historyArray)
+        });
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to save data:", error);
+        alert("Could not save data to the cloud.");
+    }
 }
 
-/**
- * Updates an existing workout log entry using its unique ID.
- */
-async function updateWorkoutLog(id, newWorkout) {
-    const { data, error } = await nhost.graphql.request(`
-        mutation ($id: uuid!, $workout: String!) {
-            update_workouts_by_pk(pk_columns: {id: $id}, _set: {workout: $workout}) {
-                id
-            }
-        }
-    `, {
-        id: id,
-        workout: newWorkout
-    });
-
-    if (error) console.error('Error updating log:', error);
-    return { data, error };
-}
-
-/**
- * Deletes a workout log entry using its unique ID.
- */
-async function deleteWorkoutLog(id) {
-    const { data, error } = await nhost.graphql.request(`
-        mutation ($id: uuid!) {
-            delete_workouts_by_pk(id: $id) {
-                id
-            }
-        }
-    `, {
-        id: id
-    });
-
-    if (error) console.error('Error deleting log:', error);
-    return { data, error };
-}
-
-export { loadData, createWorkoutLog, updateWorkoutLog, deleteWorkoutLog };
+// Export the two simple functions.
+export { loadData, saveData };
