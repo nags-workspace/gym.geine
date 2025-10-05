@@ -2,12 +2,14 @@ import { loadData as loadCloudData, saveData as saveCloudData } from './cloud.js
 
 document.addEventListener("DOMContentLoaded", () => {
     // --- STATE MANAGEMENT ---
-    let workoutHistory = []; // Will hold the data with a temporary numeric timestamp
+    let workoutHistory = [];
     let customWorkouts = [];
     let myChart;
-    let currentLogTimestampToEdit = null; // This will be the numeric timestamp
+    let currentLogTimestampToEdit = null;
 
     const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Rest Day"];
+
+    // --- DOM ELEMENT SELECTORS ---
     const dom = {
         themeToggle: document.getElementById("theme-toggle"), dashboardView: document.getElementById("dashboard-view"), logView: document.getElementById("log-view"),
         viewLogBtn: document.getElementById("view-log-btn-header"), backToDashboardBtn: document.getElementById("back-to-dashboard-btn"), workoutChoicesContainer: document.getElementById("workout-choices"),
@@ -33,9 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- DATA HANDLING ---
     const saveHistoryToCloud = async () => {
-        // STRIP OUT THE TEMPORARY PROPERTY BEFORE SAVING
         const historyToSave = workoutHistory.map(entry => {
-            const { _numericTimestamp, ...rest } = entry; // De-structure to remove _numericTimestamp
+            const { _numericTimestamp, ...rest } = entry;
             return rest;
         });
         await saveCloudData(historyToSave);
@@ -52,8 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const logWorkout = async (workoutName) => {
         const numericTimestamp = Date.now();
         const logEntry = { 
-            _numericTimestamp: numericTimestamp, // Temporary property for the app's logic
-            timestamp: createTraditionalTimestamp(numericTimestamp), // The string you want saved
+            _numericTimestamp: numericTimestamp,
+            timestamp: createTraditionalTimestamp(numericTimestamp),
             workout: workoutName 
         };
         workoutHistory.push(logEntry);
@@ -149,12 +150,22 @@ document.addEventListener("DOMContentLoaded", () => {
         dom.syncStatus.textContent = 'Loading data...'; dom.syncBtn.classList.add('syncing');
         let rawHistory = await loadCloudData();
         
-        // THE "MAGIC TRICK" HAPPENS HERE
-        // Convert string timestamps from the cloud into numeric ones for the app to use
-        workoutHistory = rawHistory.map(entry => ({
-            ...entry,
-            _numericTimestamp: new Date(String(entry.timestamp).replace(' at', '')).getTime() || 0
-        }));
+        // --- THIS IS THE FIX ---
+        // We make the conversion from string to number much more reliable.
+        workoutHistory = rawHistory.map(entry => {
+            if (!entry.timestamp) return { ...entry, _numericTimestamp: 0 }; // Handle broken data
+            
+            // Create a parsable string: "15 July 2025 7:00:00 pm"
+            const parsableString = String(entry.timestamp)
+                .replace(/ at|,/g, '') // Remove " at" and commas
+                .replace(/ IST| GMT\+[0-9:]+/g, '') // Remove timezone info
+                .replace(/^[A-Za-z]+ /, ''); // Remove the day of the week at the start
+
+            return {
+                ...entry,
+                _numericTimestamp: new Date(parsableString).getTime() || 0
+            };
+        });
         
         dom.syncStatus.textContent = ''; dom.syncBtn.classList.remove('syncing');
         updateDashboard();
@@ -191,7 +202,11 @@ document.addEventListener("DOMContentLoaded", () => {
         dom.syncBtn.addEventListener('click', async () => {
             dom.syncStatus.textContent = 'Syncing...'; dom.syncBtn.classList.add('syncing');
             let rawHistory = await loadCloudData();
-            workoutHistory = rawHistory.map(entry => ({...entry, _numericTimestamp: new Date(String(entry.timestamp).replace(' at', '')).getTime() || 0 }));
+            workoutHistory = rawHistory.map(entry => {
+                if (!entry.timestamp) return { ...entry, _numericTimestamp: 0 };
+                const parsableString = String(entry.timestamp).replace(/ at|,/g, '').replace(/ IST| GMT\+[0-9:]+/g, '').replace(/^[A-Za-z]+ /, '');
+                return { ...entry, _numericTimestamp: new Date(parsableString).getTime() || 0 };
+            });
             updateDashboard();
             dom.syncStatus.textContent = 'Synced!'; dom.syncBtn.classList.remove('syncing');
             setTimeout(() => { dom.syncStatus.textContent = ''; }, 2000);
