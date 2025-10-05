@@ -1,4 +1,3 @@
-
 /* --- THEME VARIABLES & BASIC SETUP --- */
 :root {
     --primary-color: #00bfff;
@@ -8,6 +7,10 @@
     --text-muted: #888;
     --border-color: #333;
     --success-color: #2ecc71;
+    --header-bg: rgba(30, 30, 30, 0.8);
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --shadow-light: 0 4px 8px var(--shadow-color);
+    --shadow-heavy: 0 6px 16px var(--shadow-color);
 }
 
 body.light-mode {
@@ -17,6 +20,8 @@ body.light-mode {
     --text-color: #212529;
     --text-muted: #6c757d;
     --border-color: #dee2e6;
+    --header-bg: rgba(255, 255, 255, 0.8);
+    --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
 * {
@@ -31,6 +36,8 @@ body {
     color: var(--text-color);
     padding: 20px;
     transition: background-color 0.3s, color 0.3s;
+    background-image: linear-gradient(180deg, var(--background-color) 0%, color-mix(in srgb, var(--background-color) 85%, #000) 100%);
+    min-height: 100vh;
 }
 
 main {
@@ -43,7 +50,14 @@ section {
     padding: 20px;
     margin-bottom: 25px;
     border: 1px solid var(--border-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: var(--shadow-light);
 }
+section:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-heavy);
+}
+
 h1, h2, h3 {
     color: var(--text-color);
 }
@@ -58,6 +72,13 @@ header {
     align-items: center;
     margin-bottom: 30px;
     padding-bottom: 15px;
+    position: sticky;
+    top: 0;
+    padding-top: 20px;
+    z-index: 100;
+    background-color: var(--header-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border-color);
 }
 .header-title {
@@ -121,12 +142,38 @@ input:checked + .slider:before {
     background: none;
     border: none;
     padding: 0;
+    transform: none;
+    box-shadow: none;
 }
 .stat-card {
     background-color: var(--card-background);
     padding: 15px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-light);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--primary-color) 20%, transparent) 0%, transparent 40%);
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-heavy);
+}
+.stat-card:hover::before {
+    opacity: 1;
 }
 .stat-card h4 {
     font-size: 0.9em;
@@ -168,10 +215,13 @@ input:checked + .slider:before {
     text-align: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    box-shadow: var(--shadow-light);
 }
-.workout-choice:hover {
+.workout-choice:hover:not(:disabled) {
     background-color: var(--primary-color);
     color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px var(--shadow-color);
 }
 .workout-choice.rest-day {
     border-color: #555;
@@ -186,12 +236,20 @@ input:checked + .slider:before {
     background: none;
     border: none;
     padding: 0;
+    transform: none;
+    box-shadow: none;
 }
 .activity-card {
     background-color: var(--card-background);
     padding: 15px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-light);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.activity-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-heavy);
 }
 .activity-card h4 {
     color: var(--text-muted);
@@ -221,6 +279,10 @@ input:checked + .slider:before {
     color: var(--primary-color);
     cursor: pointer;
     font-size: 1.2em;
+    transition: transform 0.2s;
+}
+.calendar-header button:hover {
+    transform: scale(1.2);
 }
 .calendar-grid-header, .calendar-grid {
     display: grid;
@@ -237,21 +299,24 @@ input:checked + .slider:before {
     padding: 8px 0;
     border-radius: 50%;
     position: relative;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease-in-out;
 }
 .calendar-day.other-month {
     color: var(--text-muted);
+    opacity: 0.5;
 }
 .calendar-day.today {
     font-weight: bold;
-    background-color: rgba(0, 191, 255, 0.2);
+    background-color: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    border: 1px solid var(--primary-color);
 }
 .calendar-day.has-workout {
     cursor: pointer;
     font-weight: bold;
 }
 .calendar-day.has-workout:hover {
-    background-color: rgba(0, 191, 255, 0.3);
+    background-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+    transform: scale(1.1);
 }
 .calendar-day.has-workout::after {
     content: '';
@@ -261,8 +326,9 @@ input:checked + .slider:before {
     transform: translateX(-50%);
     width: 6px;
     height: 6px;
-    background-color: var(--success-color);
+    background-color: var(--primary-color);
     border-radius: 50%;
+    box-shadow: 0 0 5px var(--primary-color);
 }
 
 /* --- VIEW SWITCHING & LOG PAGE --- */
@@ -271,6 +337,7 @@ input:checked + .slider:before {
 }
 #log-view header {
     border: none;
+    padding-top: 20px;
 }
 .back-btn {
     margin-right: auto;
@@ -283,35 +350,136 @@ input:checked + .slider:before {
     list-style: none;
     padding: 0;
 }
+
+/* --- MODERN UI REDESIGN FOR ACTIVITY LOG --- */
+
+@keyframes slideUpFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#history-list .date-group-card {
+    animation: slideUpFadeIn 0.5s ease-out forwards;
+    opacity: 0;
+}
+#history-list .date-group-card:nth-child(2) { animation-delay: 0.1s; }
+#history-list .date-group-card:nth-child(3) { animation-delay: 0.2s; }
+#history-list .date-group-card:nth-child(4) { animation-delay: 0.3s; }
+
 .date-group-card {
-    background-color: var(--card-background);
-    border-radius: 12px;
-    padding: 20px;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 15px 25px 20px 25px;
     margin-bottom: 20px;
+    box-shadow: 0 8px 32px -12px var(--shadow-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.date-header {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 0; /* Changed */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.date-header::before {
+    font-family: "Font Awesome 6 Free";
+    content: "\f073";
+    font-weight: 900;
+    color: var(--primary-color);
+    font-size: 0.9em;
+}
+
+/* --- NEW: Daily Stats Summary --- */
+.day-stats-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px; /* Spacing from header */
+    margin-bottom: 10px; /* Spacing from workouts list */
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.day-stat-card {
+    background-color: var(--background-color);
+    padding: 12px 15px;
+    border-radius: 10px;
     border: 1px solid var(--border-color);
 }
-.date-header {
-    padding-bottom: 10px;
-    margin-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 1.2em;
+
+.day-stat-card h4 {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 5px;
+    text-transform: uppercase;
 }
+
+.day-stat-card .day-stat-value {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+/* --- END NEW --- */
+
+
 .workout-entry {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
+    padding: 18px 5px;
+    border: none;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: background-color 0.2s ease;
+    margin: 0;
 }
-.date-group-card .workout-entry:last-child {
-    border-bottom: none;
+.workout-entry:hover {
+    background-color: color-mix(in srgb, var(--primary-color) 5%, transparent);
 }
-.workout-entry-details .name {
-    font-weight: bold;
+.workout-entry::before {
+    font-family: "Font Awesome 6 Free";
+    content: "\f44b";
+    font-weight: 900;
+    color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
     font-size: 1.1em;
 }
+
+.date-group-card .workout-entry:last-child {
+    border-bottom: none;
+    padding-bottom: 10px;
+}
+
+.workout-entry-details {
+    flex-grow: 1;
+}
+
+.workout-entry-details .name {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 2px;
+}
 .workout-entry-details .time {
-    font-size: 0.9em;
+    font-size: 0.85em;
     color: var(--text-muted);
 }
 .history-item-actions {
@@ -322,7 +490,16 @@ input:checked + .slider:before {
     width: 32px;
     height: 32px;
     font-size: 0.8em;
+    background-color: var(--background-color);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
+.workout-entry:hover .history-item-actions .icon-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+/* --- END OF LOG REDESIGN --- */
 
 /* --- MODAL STYLES --- */
 .modal-container {
@@ -351,11 +528,14 @@ input:checked + .slider:before {
     width: 90%;
     max-width: 400px;
     position: relative;
-    transform: scale(0.9);
-    transition: transform 0.3s ease;
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    box-shadow: var(--shadow-heavy);
 }
 .modal-container.show .modal-content {
-    transform: scale(1);
+    opacity: 1;
+    transform: translateY(0) scale(1);
 }
 .close-modal-btn {
     position: absolute;
@@ -366,6 +546,11 @@ input:checked + .slider:before {
     font-size: 2em;
     color: var(--text-muted);
     cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+}
+.close-modal-btn:hover {
+    color: var(--text-color);
+    transform: rotate(90deg);
 }
 #modal-date {
     margin-bottom: 20px;
@@ -444,6 +629,14 @@ input:checked + .slider:before {
     gap: 10px;
     justify-content: flex-end;
 }
+.add-workout-form input, #edit-workout-select {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.add-workout-form input:focus, #edit-workout-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
 
 /* --- BUTTONS --- */
 .icon-btn {
@@ -463,6 +656,8 @@ input:checked + .slider:before {
 .icon-btn:hover {
     color: var(--primary-color);
     border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    transform: scale(1.1);
 }
 .delete-workout-btn {
     background-color: #dc3545;
@@ -476,14 +671,29 @@ input:checked + .slider:before {
     cursor: pointer;
     line-height: 24px;
     text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.delete-workout-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 8px #dc3545;
 }
 .btn-primary {
     background-color: var(--primary-color);
     color: white;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--primary-color) 40%, transparent);
 }
 .btn-danger, #clear-history {
     background-color: #dc3545;
     color: white;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-danger:hover, #clear-history:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px color-mix(in srgb, #dc3545 40%, transparent);
 }
 #clear-history {
     display: block;
@@ -496,6 +706,7 @@ input:checked + .slider:before {
     cursor: pointer;
     margin-top: 20px;
 }
+
 /* --- DISABLED BUTTON STATE --- */
 .workout-choice:disabled,
 .workout-choice.disabled {
@@ -504,16 +715,13 @@ input:checked + .slider:before {
     cursor: not-allowed;
     opacity: 0.6;
 }
-
 .workout-choice:disabled:hover,
 .workout-choice.disabled:hover {
-    background-color: var(--border-color); /* Prevents hover effect */
+    background-color: var(--border-color);
     color: var(--text-muted);
+    transform: none;
+    box-shadow: var(--shadow-light);
 }
-
-
-
-/* --- ADD THIS TO THE END OF style.css --- */
 
 /* --- SYNC STYLES --- */
 .sync-container {
@@ -521,26 +729,21 @@ input:checked + .slider:before {
     align-items: center;
     gap: 10px;
 }
-
 #sync-status {
     font-size: 0.8em;
     font-style: italic;
     color: var(--text-muted);
     transition: color 0.3s;
 }
-
 #sync-status.success {
     color: var(--success-color);
 }
-
 #sync-status.error {
     color: #dc3545;
 }
-
 #sync-btn.syncing .fa-sync-alt {
     animation: spin 1s linear infinite;
 }
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
