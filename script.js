@@ -2,33 +2,19 @@ import { loadData as loadCloudData, saveData as saveCloudData } from './cloud.js
 
 document.addEventListener("DOMContentLoaded", () => {
     // --- STATE MANAGEMENT ---
-    let workoutHistory = [];
+    let workoutHistory = []; // Will hold the data with a temporary numeric timestamp
     let customWorkouts = [];
     let myChart;
-    let currentLogTimestampToEdit = null;
+    let currentLogTimestampToEdit = null; // This will be the numeric timestamp
 
     const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Rest Day"];
-
-    // --- DOM ELEMENT SELECTORS ---
     const dom = {
-        themeToggle: document.getElementById("theme-toggle"),
-        dashboardView: document.getElementById("dashboard-view"),
-        logView: document.getElementById("log-view"),
-        viewLogBtn: document.getElementById("view-log-btn-header"),
-        backToDashboardBtn: document.getElementById("back-to-dashboard-btn"),
-        workoutChoicesContainer: document.getElementById("workout-choices"),
-        calendarGrid: document.getElementById("calendar-grid"),
-        currentMonthEl: document.getElementById("current-month"),
-        prevMonthBtn: document.getElementById("prev-month-btn"),
-        nextMonthBtn: document.getElementById("next-month-btn"),
-        chartCanvas: document.getElementById('workout-chart').getContext('2d'),
-        historyList: document.getElementById('history-list'),
-        clearHistoryBtn: document.getElementById('clear-history'),
-        modalContainer: document.getElementById('modal-container'),
-        editWorkoutsModal: document.getElementById('edit-workouts-modal-container'),
-        editLogModal: document.getElementById('edit-log-modal-container'),
-        syncBtn: document.getElementById('sync-btn'),
-        syncStatus: document.getElementById('sync-status'),
+        themeToggle: document.getElementById("theme-toggle"), dashboardView: document.getElementById("dashboard-view"), logView: document.getElementById("log-view"),
+        viewLogBtn: document.getElementById("view-log-btn-header"), backToDashboardBtn: document.getElementById("back-to-dashboard-btn"), workoutChoicesContainer: document.getElementById("workout-choices"),
+        calendarGrid: document.getElementById("calendar-grid"), currentMonthEl: document.getElementById("current-month"), prevMonthBtn: document.getElementById("prev-month-btn"),
+        nextMonthBtn: document.getElementById("next-month-btn"), chartCanvas: document.getElementById('workout-chart').getContext('2d'), historyList: document.getElementById('history-list'),
+        clearHistoryBtn: document.getElementById('clear-history'), modalContainer: document.getElementById('modal-container'), editWorkoutsModal: document.getElementById('edit-workouts-modal-container'),
+        editLogModal: document.getElementById('edit-log-modal-container'), syncBtn: document.getElementById('sync-btn'), syncStatus: document.getElementById('sync-status'),
     };
 
     // --- DATE & TIME HELPERS ---
@@ -45,38 +31,41 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${dateString} at ${timeString}`;
     };
 
-    // --- DATA PERSISTENCE & THEME ---
+    // --- DATA HANDLING ---
+    const saveHistoryToCloud = async () => {
+        // STRIP OUT THE TEMPORARY PROPERTY BEFORE SAVING
+        const historyToSave = workoutHistory.map(entry => {
+            const { _numericTimestamp, ...rest } = entry; // De-structure to remove _numericTimestamp
+            return rest;
+        });
+        await saveCloudData(historyToSave);
+    };
+
+    // --- CORE APP LOGIC ---
     const saveCustomWorkouts = () => localStorage.setItem("customWorkouts", JSON.stringify(customWorkouts));
     const loadCustomWorkouts = () => { customWorkouts = JSON.parse(localStorage.getItem("customWorkouts")) || [...defaultWorkouts]; };
     const applyTheme = (theme) => { document.body.classList.toggle("light-mode", theme === 'light'); dom.themeToggle.checked = theme === 'light'; };
     const toggleTheme = () => { const isLightMode = document.body.classList.toggle("light-mode"); localStorage.setItem("theme", isLightMode ? 'light' : 'dark'); };
-
-    // --- VIEW SWITCHING ---
     const showDashboard = () => { dom.dashboardView.classList.remove("hidden"); dom.logView.classList.add("hidden"); };
     const showLogView = () => { dom.dashboardView.classList.add("hidden"); dom.logView.classList.remove("hidden"); renderHistoryList(); };
     
-    // --- LOGGING WORKOUTS ---
     const logWorkout = async (workoutName) => {
         const numericTimestamp = Date.now();
         const logEntry = { 
-            id_timestamp: numericTimestamp,
-            timestamp: createTraditionalTimestamp(numericTimestamp),
+            _numericTimestamp: numericTimestamp, // Temporary property for the app's logic
+            timestamp: createTraditionalTimestamp(numericTimestamp), // The string you want saved
             workout: workoutName 
         };
         workoutHistory.push(logEntry);
         updateDashboard();
-        await saveCloudData(workoutHistory);
+        await saveHistoryToCloud();
     };
 
-    // --- MASTER UPDATE FUNCTION ---
     const updateDashboard = () => { renderWorkoutChoices(); renderStats(); renderRecentActivity(); renderCalendar(); renderChart(); };
-
-    // --- RENDERING FUNCTIONS ---
+    
     const renderWorkoutChoices = () => {
-        dom.workoutChoicesContainer.innerHTML = "";
-        const today = new Date();
-        // FIX: Use fallback for timestamp
-        const workoutsLoggedToday = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp || e.timestamp), today)).map(e => e.workout);
+        dom.workoutChoicesContainer.innerHTML = ""; const today = new Date();
+        const workoutsLoggedToday = workoutHistory.filter(e => isSameDay(new Date(e._numericTimestamp), today)).map(e => e.workout);
         const isRestDayLogged = workoutsLoggedToday.includes('Rest Day');
         customWorkouts.forEach(workout => {
             const btn = document.createElement("button"); btn.className = "workout-choice"; btn.textContent = workout;
@@ -89,15 +78,11 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     const renderStats = () => {
-        // FIX: Use fallback for timestamp
-        const uniqueWorkoutDays = [...new Set(workoutHistory.filter(e => e.workout !== 'Rest Day').map(e => getFormattedDate(new Date(e.id_timestamp || e.timestamp))))].sort((a, b) => new Date(b) - new Date(a));
+        const uniqueWorkoutDays = [...new Set(workoutHistory.filter(e => e.workout !== 'Rest Day').map(e => getFormattedDate(new Date(e._numericTimestamp))))].sort((a, b) => new Date(b) - new Date(a));
         let streak = 0; if (uniqueWorkoutDays.length > 0) { const today = new Date(); const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); if (isSameDay(new Date(uniqueWorkoutDays[0]), today) || isSameDay(new Date(uniqueWorkoutDays[0]), yesterday)) { streak = 1; for (let i = 0; i < uniqueWorkoutDays.length - 1; i++) { if ((new Date(uniqueWorkoutDays[i]) - new Date(uniqueWorkoutDays[i+1])) / 86400000 === 1) streak++; else break; } } }
         document.getElementById('streak-stat').textContent = streak;
-        
-        // FIX: Use fallback for timestamp
-        const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear(); const monthCount = workoutHistory.filter(e => { const d = new Date(e.id_timestamp || e.timestamp); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; }).length;
+        const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear(); const monthCount = workoutHistory.filter(e => { const d = new Date(e._numericTimestamp); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; }).length;
         document.getElementById('month-stat').textContent = monthCount;
-
         const counts = workoutHistory.filter(e => e.workout !== 'Rest Day').reduce((acc, e) => { acc[e.workout] = (acc[e.workout] || 0) + 1; return acc; }, {});
         const favorite = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, '-');
         document.getElementById('favorite-stat').textContent = favorite;
@@ -105,26 +90,17 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const renderRecentActivity = () => {
         const yesterday = new Date(); yesterday.setDate(new Date().getDate() - 1); const dayBefore = new Date(); dayBefore.setDate(new Date().getDate() - 2);
-        const createHTML = (date) => { 
-            // FIX: Use fallback for timestamp
-            const workouts = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp || e.timestamp), date)); 
-            return workouts.length > 0 ? workouts.map(e => `<div class="activity-log-item">${e.workout}</div>`).join('') : '<div class="placeholder">No activity</div>'; 
-        };
+        const createHTML = (date) => { const workouts = workoutHistory.filter(e => isSameDay(new Date(e._numericTimestamp), date)); return workouts.length > 0 ? workouts.map(e => `<div class="activity-log-item">${e.workout}</div>`).join('') : '<div class="placeholder">No activity</div>'; };
         document.getElementById('yesterday-activity').innerHTML = createHTML(yesterday); document.getElementById('day-before-yesterday-activity').innerHTML = createHTML(dayBefore);
     };
 
     const renderCalendar = () => {
-        dom.calendarGrid.innerHTML = "";
-        const month = currentDate.getMonth(); const year = currentDate.getFullYear(); dom.currentMonthEl.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+        dom.calendarGrid.innerHTML = ""; const month = currentDate.getMonth(); const year = currentDate.getFullYear(); dom.currentMonthEl.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
         const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
         for (let i = 0; i < firstDay; i++) dom.calendarGrid.innerHTML += `<div class="calendar-day other-month"></div>`;
         for (let i = 1; i <= daysInMonth; i++) {
             const day = new Date(year, month, i); const dayEl = document.createElement("div"); dayEl.className = "calendar-day"; dayEl.textContent = i;
-            // FIX: Use fallback for timestamp
-            if (workoutHistory.some(e => isSameDay(new Date(e.id_timestamp || e.timestamp), day))) { 
-                dayEl.classList.add("has-workout"); 
-                dayEl.addEventListener('click', () => showDayDetailsModal(day)); 
-            }
+            if (workoutHistory.some(e => isSameDay(new Date(e._numericTimestamp), day))) { dayEl.classList.add("has-workout"); dayEl.addEventListener('click', () => showDayDetailsModal(day)); }
             if (isSameDay(day, new Date())) dayEl.classList.add("today");
             dom.calendarGrid.appendChild(dayEl);
         }
@@ -137,22 +113,13 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const renderHistoryList = () => {
-        dom.historyList.innerHTML = workoutHistory.length ? '' : '<p>No history yet. Go work out!</p>';
-        if (!workoutHistory.length) return;
-        const grouped = workoutHistory.reduce((acc, entry) => {
-            // FIX: Use fallback for timestamp
-            const date = getFormattedDate(new Date(entry.id_timestamp || entry.timestamp));
-            if (!acc[date]) acc[date] = []; acc[date].push(entry); return acc;
-        }, {});
+        dom.historyList.innerHTML = workoutHistory.length ? '' : '<p>No history yet.</p>'; if (!workoutHistory.length) return;
+        const grouped = workoutHistory.reduce((acc, entry) => { const date = getFormattedDate(new Date(entry._numericTimestamp)); if (!acc[date]) acc[date] = []; acc[date].push(entry); return acc; }, {});
         Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a)).forEach(dateStr => {
             const card = document.createElement('li'); card.className = 'date-group-card';
-            // FIX: Use fallback for timestamp for sorting and data-attribute
-            const entriesHTML = grouped[dateStr].sort((a,b) => (b.id_timestamp || b.timestamp) - (a.id_timestamp || a.timestamp)).map(entry => `
-                <div class="workout-entry" data-timestamp="${entry.id_timestamp || entry.timestamp}">
-                    <div class="workout-entry-details">
-                        <div class="name">${entry.workout}</div>
-                        <div class="time">${entry.timestamp}</div> 
-                    </div>
+            const entriesHTML = grouped[dateStr].sort((a,b) => b._numericTimestamp - a._numericTimestamp).map(entry => `
+                <div class="workout-entry" data-timestamp="${entry._numericTimestamp}">
+                    <div class="workout-entry-details"><div class="name">${entry.workout}</div><div class="time">${entry.timestamp}</div></div>
                     <div class="history-item-actions"><button class="icon-btn edit-log-btn"><i class="fas fa-pencil-alt"></i></button></div>
                 </div>`).join('');
             card.innerHTML = `<h3 class="date-header">${new Date(dateStr).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>${entriesHTML}`;
@@ -161,47 +128,41 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('.edit-log-btn').forEach(btn => btn.addEventListener('click', e => showEditLogModal(parseInt(e.currentTarget.closest('.workout-entry').dataset.timestamp))));
     };
 
-    // --- MODAL HANDLING ---
-    const showModal = (modalEl) => modalEl.classList.add('show');
-    const hideModal = (modalEl) => modalEl.classList.remove('show');
-
+    const showModal = (modalEl) => modalEl.classList.add('show'); const hideModal = (modalEl) => modalEl.classList.remove('show');
     const showDayDetailsModal = (date) => {
         document.getElementById('modal-date').textContent = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-        // FIX: Use fallback for timestamp
-        document.getElementById('modal-list').innerHTML = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp || e.timestamp), date)).map(e => `<li>${e.workout}</li>`).join('');
+        document.getElementById('modal-list').innerHTML = workoutHistory.filter(e => isSameDay(new Date(e._numericTimestamp), date)).map(e => `<li>${e.workout}</li>`).join('');
         showModal(dom.modalContainer);
     };
-
     const renderCustomWorkoutsList = () => { document.getElementById('custom-workouts-list').innerHTML = customWorkouts.map(w => `<li><span>${w}</span><button class="delete-workout-btn" data-workout="${w}">&times;</button></li>`).join(''); };
-
     const showEditLogModal = (timestamp) => {
         currentLogTimestampToEdit = timestamp;
-        // FIX: Use fallback for timestamp
-        const logEntry = workoutHistory.find(e => (e.id_timestamp || e.timestamp) === timestamp);
-        if (!logEntry) return;
+        const logEntry = workoutHistory.find(e => e._numericTimestamp === timestamp); if (!logEntry) return;
         document.getElementById('edit-log-time').textContent = `Logged at: ${logEntry.timestamp}`;
         document.getElementById('edit-workout-select').innerHTML = customWorkouts.map(w => `<option value="${w}" ${w === logEntry.workout ? 'selected' : ''}>${w}</option>`).join('');
         showModal(dom.editLogModal);
     };
 
-    // --- INITIALIZATION & EVENT LISTENERS ---
     const init = async () => {
-        loadCustomWorkouts();
-        applyTheme(localStorage.getItem("theme") || 'dark');
+        loadCustomWorkouts(); applyTheme(localStorage.getItem("theme") || 'dark');
         
         dom.syncStatus.textContent = 'Loading data...'; dom.syncBtn.classList.add('syncing');
-        workoutHistory = await loadCloudData();
-        dom.syncStatus.textContent = ''; dom.syncBtn.classList.remove('syncing');
+        let rawHistory = await loadCloudData();
         
+        // THE "MAGIC TRICK" HAPPENS HERE
+        // Convert string timestamps from the cloud into numeric ones for the app to use
+        workoutHistory = rawHistory.map(entry => ({
+            ...entry,
+            _numericTimestamp: new Date(String(entry.timestamp).replace(' at', '')).getTime() || 0
+        }));
+        
+        dom.syncStatus.textContent = ''; dom.syncBtn.classList.remove('syncing');
         updateDashboard();
 
-        dom.themeToggle.addEventListener("change", toggleTheme);
-        dom.viewLogBtn.addEventListener("click", showLogView);
-        dom.backToDashboardBtn.addEventListener("click", showDashboard);
+        dom.themeToggle.addEventListener("change", toggleTheme); dom.viewLogBtn.addEventListener("click", showLogView); dom.backToDashboardBtn.addEventListener("click", showDashboard);
         dom.prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
         dom.nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-        
-        dom.clearHistoryBtn.addEventListener('click', async () => { if(confirm("Are you sure?")){ workoutHistory = []; updateDashboard(); renderHistoryList(); await saveCloudData([]); } });
+        dom.clearHistoryBtn.addEventListener('click', async () => { if(confirm("Are you sure?")){ workoutHistory = []; updateDashboard(); renderHistoryList(); await saveHistoryToCloud(); } });
         
         document.querySelectorAll('.modal-container').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('.close-modal-btn')) hideModal(m); }));
         document.getElementById('edit-workouts-btn').addEventListener('click', () => { renderCustomWorkoutsList(); showModal(dom.editWorkoutsModal); });
@@ -211,27 +172,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         document.getElementById('save-log-change-btn').addEventListener('click', async () => {
             const newWorkout = document.getElementById('edit-workout-select').value;
-            // FIX: Use fallback for timestamp
-            const entryIndex = workoutHistory.findIndex(e => (e.id_timestamp || e.timestamp) === currentLogTimestampToEdit);
+            const entryIndex = workoutHistory.findIndex(e => e._numericTimestamp === currentLogTimestampToEdit);
             if (entryIndex > -1) workoutHistory[entryIndex].workout = newWorkout;
             renderHistoryList(); updateDashboard();
             hideModal(dom.editLogModal);
-            await saveCloudData(workoutHistory);
+            await saveHistoryToCloud();
         });
         
         document.getElementById('delete-log-entry-btn').addEventListener('click', async () => {
             if (confirm('Are you sure?')) {
-                // FIX: Use fallback for timestamp
-                workoutHistory = workoutHistory.filter(e => (e.id_timestamp || e.timestamp) !== currentLogTimestampToEdit);
+                workoutHistory = workoutHistory.filter(e => e._numericTimestamp !== currentLogTimestampToEdit);
                 renderHistoryList(); updateDashboard();
                 hideModal(dom.editLogModal);
-                await saveCloudData(workoutHistory);
+                await saveHistoryToCloud();
             }
         });
 
         dom.syncBtn.addEventListener('click', async () => {
             dom.syncStatus.textContent = 'Syncing...'; dom.syncBtn.classList.add('syncing');
-            workoutHistory = await loadCloudData();
+            let rawHistory = await loadCloudData();
+            workoutHistory = rawHistory.map(entry => ({...entry, _numericTimestamp: new Date(String(entry.timestamp).replace(' at', '')).getTime() || 0 }));
             updateDashboard();
             dom.syncStatus.textContent = 'Synced!'; dom.syncBtn.classList.remove('syncing');
             setTimeout(() => { dom.syncStatus.textContent = ''; }, 2000);
