@@ -1,9 +1,12 @@
+import { loadData as loadCloudData, saveData as saveCloudData } from './cloud.js';
+
 document.addEventListener("DOMContentLoaded", () => {
     // --- STATE MANAGEMENT ---
     let workoutHistory = [];
     let customWorkouts = [];
     let myChart;
-    let currentLogTimestampToEdit = null;
+    // Editing is disabled for the spreadsheet version for simplicity
+    // let currentLogTimestampToEdit = null; 
 
     const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Rest Day"];
 
@@ -45,21 +48,14 @@ document.addEventListener("DOMContentLoaded", () => {
                d1.getDate() === d2.getDate();
     };
 
-    // --- DATA PERSISTENCE (LOCALSTORAGE) ---
-    const saveData = () => {
-        localStorage.setItem("workoutHistory", JSON.stringify(workoutHistory));
+    // --- DATA PERSISTENCE (CUSTOM WORKOUTS ONLY) ---
+    const saveCustomWorkouts = () => {
         localStorage.setItem("customWorkouts", JSON.stringify(customWorkouts));
     };
 
-    const loadData = () => {
-        const history = localStorage.getItem("workoutHistory");
+    const loadCustomWorkouts = () => {
         const workouts = localStorage.getItem("customWorkouts");
-
-        const loadedHistory = history ? JSON.parse(history) : [];
-        workoutHistory = loadedHistory.filter(entry => entry && entry.workout && typeof entry.workout === 'string');
-        
         customWorkouts = workouts ? JSON.parse(workouts) : [...defaultWorkouts];
-        
         if (customWorkouts.length === 0) {
             customWorkouts = [...defaultWorkouts];
         }
@@ -94,25 +90,25 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     // --- LOGGING WORKOUTS ---
-    const logWorkout = (workoutName) => {
-        workoutHistory.push({ timestamp: Date.now(), workout: workoutName });
-        saveData();
+    const logWorkout = async (workoutName) => {
+        const logEntry = { timestamp: Date.now(), workout: workoutName };
+        
+        // Optimistic UI Update
+        workoutHistory.push(logEntry);
         updateDashboard();
+        
+        // Save to the cloud
+        await saveCloudData(logEntry);
     };
 
     // --- RENDERING FUNCTIONS ---
     const renderWorkoutChoices = () => {
         workoutChoicesContainer.innerHTML = "";
         const today = new Date();
-
-        // *** FIX HERE: Implement more nuanced logic for disabling buttons. ***
-        
-        // 1. Get a list of all workout names logged today.
         const workoutsLoggedToday = workoutHistory
             .filter(entry => isSameDay(new Date(entry.timestamp), today))
             .map(entry => entry.workout);
 
-        // 2. Check if "Rest Day" was specifically logged.
         const isRestDayLogged = workoutsLoggedToday.some(w => w.toLowerCase() === 'rest day');
 
         customWorkouts.forEach(workout => {
@@ -123,18 +119,14 @@ document.addEventListener("DOMContentLoaded", () => {
             let isDisabled = false;
 
             if (isRestDayLogged) {
-                // If today is a rest day, disable all buttons.
                 isDisabled = true;
             } else {
-                // Handle the "Rest Day" button itself
                 if (workout.toLowerCase() === 'rest day') {
                     button.classList.add("rest-day");
-                    // Disable 'Rest Day' if any other workout has already been logged.
                     if (workoutsLoggedToday.length > 0) {
                         isDisabled = true;
                     }
                 } else {
-                    // Disable a regular workout button only if it has already been logged today.
                     if (workoutsLoggedToday.includes(workout)) {
                         isDisabled = true;
                     }
@@ -350,26 +342,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="name">${entry.workout}</div>
                             <div class="time">${time}</div>
                         </div>
-                        <div class="history-item-actions">
-                            <button class="icon-btn edit-log-btn" title="Edit Entry"><i class="fas fa-pencil-alt"></i></button>
-                        </div>
+                        <!-- Actions are removed for spreadsheet version -->
                     </div>
                 `;
             }).join('');
 
-            card.innerHTML = `
-                <h3 class="date-header">${formattedDate}</h3>
-                ${entriesHTML}
-            `;
+            card.innerHTML = `<h3 class="date-header">${formattedDate}</h3>${entriesHTML}`;
             historyList.appendChild(card);
-        });
-        
-        // Add event listeners to newly created edit buttons
-        document.querySelectorAll('.edit-log-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const timestamp = e.currentTarget.closest('.workout-entry').dataset.timestamp;
-                showEditLogModal(parseInt(timestamp));
-            });
         });
     };
 
@@ -398,46 +377,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
     
-    const showEditLogModal = (timestamp) => {
-        currentLogTimestampToEdit = timestamp;
-        const logEntry = workoutHistory.find(e => e.timestamp === timestamp);
-        if (!logEntry) return;
-
-        document.getElementById('edit-log-time').textContent = `Logged at ${new Date(timestamp).toLocaleString()}`;
-        const select = document.getElementById('edit-workout-select');
-        select.innerHTML = customWorkouts.map(w => `<option value="${w}" ${w === logEntry.workout ? 'selected' : ''}>${w}</option>`).join('');
-        
-        showModal(editLogModal);
-    };
-
-    // --- SYNC FUNCTIONALITY ---
-    const handleSync = () => {
-        syncBtn.classList.add('syncing');
-        syncStatus.textContent = 'Syncing...';
-        syncStatus.className = '';
-
-        // Simulate API call
-        setTimeout(() => {
-            syncBtn.classList.remove('syncing');
-            const success = Math.random() > 0.3; // 70% chance of success
-
-            if (success) {
-                syncStatus.textContent = 'Synced successfully!';
-                syncStatus.classList.add('success');
-            } else {
-                syncStatus.textContent = 'Sync failed.';
-                syncStatus.classList.add('error');
-            }
-
-            // Clear status after a few seconds
-            setTimeout(() => {
-                syncStatus.textContent = '';
-                syncStatus.className = '';
-            }, 3000);
-
-        }, 2000); // 2-second delay
-    };
-
     // --- MASTER UPDATE FUNCTION ---
     const updateDashboard = () => {
         renderWorkoutChoices();
@@ -448,13 +387,25 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // --- INITIALIZATION & EVENT LISTENERS ---
-    const init = () => {
-        // Load data
-        loadData();
+    const init = async () => {
+        // Load custom workouts from localStorage
+        loadCustomWorkouts();
 
-        // Setup theme
+        // Load theme from localStorage
         const savedTheme = localStorage.getItem("theme") || 'dark';
         applyTheme(savedTheme);
+
+        // Load main workout history from the cloud
+        syncBtn.classList.add('syncing');
+        syncStatus.textContent = 'Loading data...';
+        workoutHistory = await loadCloudData();
+        syncBtn.classList.remove('syncing');
+        syncStatus.textContent = '';
+        
+        // Initial render
+        updateDashboard();
+
+        // Setup theme toggling
         themeToggle.addEventListener("change", toggleTheme);
 
         // Setup view switching
@@ -471,14 +422,9 @@ document.addEventListener("DOMContentLoaded", () => {
             renderCalendar();
         });
         
-        // History clearing
+        // History clearing - modified for spreadsheet
         clearHistoryBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete ALL workout history? This cannot be undone.')) {
-                workoutHistory = [];
-                saveData();
-                renderHistoryList();
-                updateDashboard();
-            }
+            alert("To clear history, please clear the rows in your Google Sheet manually and then click the sync button or refresh the page.");
         });
 
         // Modal close buttons
@@ -495,7 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Edit Workouts Modal Logic
+        // Edit Workouts Modal Logic (uses localStorage)
         document.getElementById('edit-workouts-btn').addEventListener('click', () => {
             renderCustomWorkoutsList();
             showModal(editWorkoutsModal);
@@ -507,7 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const newWorkout = input.value.trim();
             if (newWorkout && !customWorkouts.find(w => w.toLowerCase() === newWorkout.toLowerCase())) {
                 customWorkouts.push(newWorkout);
-                saveData();
+                saveCustomWorkouts();
                 renderCustomWorkoutsList();
                 renderWorkoutChoices();
                 input.value = '';
@@ -518,40 +464,24 @@ document.addEventListener("DOMContentLoaded", () => {
             if (e.target.classList.contains('delete-workout-btn')) {
                 const workoutToDelete = e.target.dataset.workout;
                 customWorkouts = customWorkouts.filter(w => w !== workoutToDelete);
-                saveData();
+                saveCustomWorkouts();
                 renderCustomWorkoutsList();
                 renderWorkoutChoices();
             }
         });
 
-        // Edit Log Entry Modal Logic
-        document.getElementById('save-log-change-btn').addEventListener('click', () => {
-            const newWorkout = document.getElementById('edit-workout-select').value;
-            const entryIndex = workoutHistory.findIndex(e => e.timestamp === currentLogTimestampToEdit);
-            if(entryIndex > -1) {
-                workoutHistory[entryIndex].workout = newWorkout;
-                saveData();
-                renderHistoryList();
-                updateDashboard();
-                hideModal(editLogModal);
-            }
-        });
-        
-        document.getElementById('delete-log-entry-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete this log entry?')) {
-                workoutHistory = workoutHistory.filter(e => e.timestamp !== currentLogTimestampToEdit);
-                saveData();
-                renderHistoryList();
-                updateDashboard();
-                hideModal(editLogModal);
-            }
-        });
+        // Sync button now re-fetches from cloud
+        syncBtn.addEventListener('click', async () => {
+            syncBtn.classList.add('syncing');
+            syncStatus.textContent = 'Syncing...';
+            
+            workoutHistory = await loadCloudData();
+            updateDashboard();
 
-        // Sync button
-        syncBtn.addEventListener('click', handleSync);
-
-        // Initial render
-        updateDashboard();
+            syncBtn.classList.remove('syncing');
+            syncStatus.textContent = 'Synced!';
+            setTimeout(() => { syncStatus.textContent = ''; }, 2000);
+        });
     };
 
     init();
