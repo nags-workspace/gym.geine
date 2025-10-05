@@ -1,4 +1,4 @@
-import { NhostClient } from 'https://cdn.jsdelivr.net/npm/@nhost/nhost-js/+esm'
+import { NhostClient } from 'https://cdn.jsdelivr.net/npm/@nhost/nhost-js@3.3.0/+esm'
 
 // ===================================================================
 // YOUR SPECIFIC PROJECT INFO FOR NHOST v4
