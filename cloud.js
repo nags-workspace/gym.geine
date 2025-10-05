@@ -1,63 +1,97 @@
+import { NhostClient } from 'https://cdn.jsdelivr.net/npm/@nhost/nhost-js@3.0.1/+esm'
+
 // ===================================================================
-// PASTE THE SAME WEB APP URL YOU USED BEFORE
+// YOUR SPECIFIC BACKEND URL IS NOW INCLUDED
 // ===================================================================
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXZl7lzNdOnx_PATIDc-v8S-2evF2VYHEvGGbfJhwU_MUocIsG63sKTWBirdwWYdLNLQ/exec";
+const NHOST_BACKEND_URL = 'https://selzxrsfvcgyshuwvlrn.nhost.run'; 
+const NHOST_PUBLIC_ANON_KEY = '155264639a850117282258288544d673';
 // ===================================================================
 
+// Initialize the Nhost client
+const nhost = new NhostClient({
+  backendUrl: NHOST_BACKEND_URL,
+  clientStorageType: 'localStorage',
+  clientStorage: window.localStorage,
+});
 
 /**
- * Fetches all workout history from the Google Sheet.
+ * Fetches all workout history from the Nhost database.
  */
 async function loadData() {
-    try {
-        const response = await fetch(WEB_APP_URL);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        return data.map(row => ({ ...row, timestamp: Number(row.timestamp) }));
-    } catch (error) {
-        console.error("Failed to load data:", error);
+    console.log("Loading data from Nhost...");
+    const { data, error } = await nhost.graphql.request(`
+        query {
+            workouts(order_by: {timestamp: desc}) {
+                id
+                timestamp
+                workout
+            }
+        }
+    `);
+
+    if (error) {
+        console.error('Error loading data:', error);
+        alert("Could not load data from the cloud. Please check your Nhost permissions and URL.");
         return [];
     }
-}
-
-/**
- * Sends a generic request to the Google Sheet API.
- * @param {string} action - The command to execute ('create', 'update', 'delete').
- * @param {object} data - The payload for the action.
- */
-async function sendRequest(action, data) {
-    try {
-        const response = await fetch(WEB_APP_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action, data }),
-            headers: { 'Content-Type': 'application/json' },
-        });
-        return await response.json();
-    } catch (error) {
-        console.error(`Failed to ${action} data:`, error);
-        return { status: 'error', message: error.message };
-    }
+    // The timestamp comes back as a string, so we convert it to a number
+    return data.workouts.map(item => ({...item, timestamp: Number(item.timestamp)}));
 }
 
 /**
  * Saves a new workout log entry.
  */
-function createWorkoutLog(logEntry) {
-    return sendRequest('create', logEntry);
+async function createWorkoutLog(logEntry) {
+    const { data, error } = await nhost.graphql.request(`
+        mutation ($timestamp: bigint!, $workout: String!) {
+            insert_workouts_one(object: {timestamp: $timestamp, workout: $workout}) {
+                id
+            }
+        }
+    `, {
+        timestamp: logEntry.timestamp,
+        workout: logEntry.workout
+    });
+
+    if (error) console.error('Error creating log:', error);
+    return { data, error };
 }
 
 /**
- * Updates an existing workout log entry.
+ * Updates an existing workout log entry using its unique ID.
  */
-function updateWorkoutLog(timestamp, newWorkout) {
-    return sendRequest('update', { timestamp, newWorkout });
+async function updateWorkoutLog(id, newWorkout) {
+    const { data, error } = await nhost.graphql.request(`
+        mutation ($id: uuid!, $workout: String!) {
+            update_workouts_by_pk(pk_columns: {id: $id}, _set: {workout: $workout}) {
+                id
+            }
+        }
+    `, {
+        id: id,
+        workout: newWorkout
+    });
+
+    if (error) console.error('Error updating log:', error);
+    return { data, error };
 }
 
 /**
- * Deletes a workout log entry.
+ * Deletes a workout log entry using its unique ID.
  */
-function deleteWorkoutLog(timestamp) {
-    return sendRequest('delete', { timestamp });
+async function deleteWorkoutLog(id) {
+    const { data, error } = await nhost.graphql.request(`
+        mutation ($id: uuid!) {
+            delete_workouts_by_pk(id: $id) {
+                id
+            }
+        }
+    `, {
+        id: id
+    });
+
+    if (error) console.error('Error deleting log:', error);
+    return { data, error };
 }
 
 export { loadData, createWorkoutLog, updateWorkoutLog, deleteWorkoutLog };
