@@ -1,38 +1,35 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workout Dashboard</title>
-    <!-- ADDED GOOGLE FONT -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css">
 </head>
 <body>
+
     <!-- Main Dashboard View -->
     <div id="dashboard-view">
         <header>
             <h1 class="header-title">My Dashboard</h1>
             <div class="header-actions">
+                <!-- NEW SYNC BUTTON AND STATUS -->
                 <div class="sync-container">
-                    <button id="sync-btn" class="icon-btn" title="Sync with Cloud" aria-label="Sync with Cloud"><i class="fas fa-sync-alt"></i></button>
+                    <button id="sync-btn" class="icon-btn" title="Sync with Cloud"><i class="fas fa-sync-alt"></i></button>
                     <span id="sync-status"></span>
                 </div>
-                <button id="view-log-btn-header" class="icon-btn" title="View Full Activity Log" aria-label="View Full Activity Log"><i class="fas fa-history"></i></button>
+                <button id="view-log-btn-header" class="icon-btn" title="View Full Activity Log"><i class="fas fa-history"></i></button>
                 <div class="theme-switch-wrapper">
-                    <!-- UPDATED ICONS -->
-                    <i class="fas fa-sun"></i>
+                    <i class="fas fa-cog"></i>
                     <label class="theme-switch"><input type="checkbox" id="theme-toggle"><span class="slider round"></span></label>
-                    <i class="fas fa-moon"></i>
                 </div>
             </div>
         </header>
 
         <main>
+            <!-- **REDESIGNED** STATS SECTION -->
             <section class="stats-container">
                 <div class="stat-card">
                     <h4>Streak</h4>
@@ -48,10 +45,11 @@
                 </div>
             </section>
 
+            <!-- Logging, Recent, Calendar, and Chart sections -->
             <section class="log-section">
                 <div class="section-header">
                     <h2>What did you train today?</h2>
-                    <button id="edit-workouts-btn" class="icon-btn" title="Edit Workouts" aria-label="Edit Workouts"><i class="fas fa-pencil-alt"></i></button>
+                    <button id="edit-workouts-btn" class="icon-btn" title="Edit Workouts"><i class="fas fa-pencil-alt"></i></button>
                 </div>
                 <div id="workout-choices" class="choices-container"></div>
             </section>
@@ -63,9 +61,9 @@
 
             <section class="calendar-section">
                 <div class="calendar-header">
-                    <button id="prev-month-btn" aria-label="Previous Month"><i class="fas fa-chevron-left"></i></button>
+                    <button id="prev-month-btn"><i class="fas fa-chevron-left"></i></button>
                     <h3 id="current-month"></h3>
-                    <button id="next-month-btn" aria-label="Next Month"><i class="fas fa-chevron-right"></i></button>
+                    <button id="next-month-btn"><i class="fas fa-chevron-right"></i></button>
                 </div>
                 <div class="calendar-grid-header"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
                 <div id="calendar-grid" class="calendar-grid"></div>
@@ -78,27 +76,30 @@
     <!-- Separate Activity Log View -->
     <div id="log-view" class="hidden">
         <header>
-            <button id="back-to-dashboard-btn" class="icon-btn back-btn" title="Back to Dashboard" aria-label="Back to Dashboard"><i class="fas fa-arrow-left"></i></button>
+            <button id="back-to-dashboard-btn" class="icon-btn back-btn" title="Back to Dashboard"><i class="fas fa-arrow-left"></i></button>
             <h1 class="header-title">Full Activity Log</h1>
         </header>
         <main>
             <ul id="history-list">
+                <!-- Redesigned history will be generated here -->
             </ul>
             <button id="clear-history" class="btn-danger">Clear All History</button>
         </main>
     </div>
 
-    <!-- Modals (structure unchanged) -->
+    <!-- Calendar Day Details Modal -->
     <div id="modal-container" class="modal-container">
         <div class="modal-content">
-            <button id="close-modal-btn" class="close-modal-btn" aria-label="Close Modal">&times;</button>
+            <button id="close-modal-btn" class="close-modal-btn">&times;</button>
             <h2 id="modal-date"></h2>
             <ul id="modal-list"></ul>
         </div>
     </div>
+
+    <!-- Edit Workouts List Modal -->
     <div id="edit-workouts-modal-container" class="modal-container">
         <div class="modal-content">
-            <button id="close-edit-modal-btn" class="close-modal-btn" aria-label="Close Modal">&times;</button>
+            <button id="close-edit-modal-btn" class="close-modal-btn">&times;</button>
             <h2>Edit Workouts</h2>
             <ul id="custom-workouts-list"></ul>
             <form id="add-workout-form" class="add-workout-form">
@@ -107,9 +108,11 @@
             </form>
         </div>
     </div>
+
+    <!-- Edit Specific Log Entry Modal -->
     <div id="edit-log-modal-container" class="modal-container">
         <div class="modal-content">
-            <button id="close-edit-log-modal-btn" class="close-modal-btn" aria-label="Close Modal">&times;</button>
+            <button id="close-edit-log-modal-btn" class="close-modal-btn">&times;</button>
             <h2>Edit Log Entry</h2>
             <p id="edit-log-time"></p>
             <div class="form-group">
@@ -124,7 +127,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="module" src="script.js?v=1.1"></script>
-    <script type="module" src="cloud.js?v=1.1"></script>
+    <script type="module" src="script.js?v=1.0"></script>
 </body>
 </html>
