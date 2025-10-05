@@ -1,7 +1,7 @@
-import { NhostClient } from 'https://cdn.jsdelivr.net/npm/@nhost/nhost-js@3.0.1/+esm'
+import { NhostClient } from 'https://cdn.jsdelivr.net/npm/@nhost/nhost-js@3.1.0/+esm'
 
 // ===================================================================
-// YOUR SPECIFIC BACKEND URL IS NOW INCLUDED
+// YOUR SPECIFIC BACKEND URL IS ALREADY INCLUDED
 // ===================================================================
 const NHOST_BACKEND_URL = 'https://selzxrsfvcgyshuwvlrn.nhost.run'; 
 const NHOST_PUBLIC_ANON_KEY = '155264639a850117282258288544d673';
