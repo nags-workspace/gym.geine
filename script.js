@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let myChart;
     let currentLogTimestampToEdit = null;
 
-    const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Rest Day"];
+    const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Forearms", "Cardio", "Rest Day"];
 
     // --- DOM ELEMENT SELECTORS ---
     const dom = {
