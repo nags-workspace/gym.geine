@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let workoutHistory = [];
     let customWorkouts = [];
     let myChart;
-    let currentLogTimestampToEdit = null; // This will refer to the numeric 'id_timestamp'
+    let currentLogTimestampToEdit = null;
 
     const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Rest Day"];
 
@@ -36,17 +36,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const getFormattedDate = (date) => date.toISOString().split('T')[0];
     const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 
-    /**
-     * Creates the exact string format you requested.
-     */
     const createTraditionalTimestamp = (timestamp) => {
         const date = new Date(timestamp);
         const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata' };
         const timeOptions = { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true, timeZone: 'Asia/Kolkata', timeZoneName: 'short' };
-        
         const dateString = date.toLocaleDateString('en-GB', dateOptions);
         const timeString = date.toLocaleTimeString('en-US', timeOptions);
-
         return `${dateString} at ${timeString}`;
     };
 
@@ -64,8 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const logWorkout = async (workoutName) => {
         const numericTimestamp = Date.now();
         const logEntry = { 
-            id_timestamp: numericTimestamp, // The reliable number for calculations
-            timestamp: createTraditionalTimestamp(numericTimestamp), // The string you want to see
+            id_timestamp: numericTimestamp,
+            timestamp: createTraditionalTimestamp(numericTimestamp),
             workout: workoutName 
         };
         workoutHistory.push(logEntry);
@@ -80,37 +75,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const renderWorkoutChoices = () => {
         dom.workoutChoicesContainer.innerHTML = "";
         const today = new Date();
-        const workoutsLoggedToday = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp), today)).map(e => e.workout);
+        // FIX: Use fallback for timestamp
+        const workoutsLoggedToday = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp || e.timestamp), today)).map(e => e.workout);
         const isRestDayLogged = workoutsLoggedToday.includes('Rest Day');
         customWorkouts.forEach(workout => {
-            const btn = document.createElement("button");
-            btn.className = "workout-choice";
-            btn.textContent = workout;
+            const btn = document.createElement("button"); btn.className = "workout-choice"; btn.textContent = workout;
             let isDisabled = isRestDayLogged || workoutsLoggedToday.includes(workout) || (workout === 'Rest Day' && workoutsLoggedToday.length > 0);
             if (workout === 'Rest Day') btn.classList.add("rest-day");
-            btn.disabled = isDisabled;
-            if (isDisabled) btn.classList.add('disabled');
+            btn.disabled = isDisabled; if (isDisabled) btn.classList.add('disabled');
             btn.addEventListener("click", () => logWorkout(workout));
             dom.workoutChoicesContainer.appendChild(btn);
         });
     };
     
     const renderStats = () => {
-        const uniqueWorkoutDays = [...new Set(workoutHistory.filter(e => e.workout !== 'Rest Day').map(e => getFormattedDate(new Date(e.id_timestamp))))].sort((a, b) => new Date(b) - new Date(a));
-        let streak = 0;
-        if (uniqueWorkoutDays.length > 0) {
-            const today = new Date(); const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-            if (isSameDay(new Date(uniqueWorkoutDays[0]), today) || isSameDay(new Date(uniqueWorkoutDays[0]), yesterday)) {
-                streak = 1;
-                for (let i = 0; i < uniqueWorkoutDays.length - 1; i++) {
-                    if ((new Date(uniqueWorkoutDays[i]) - new Date(uniqueWorkoutDays[i+1])) / 86400000 === 1) streak++; else break;
-                }
-            }
-        }
+        // FIX: Use fallback for timestamp
+        const uniqueWorkoutDays = [...new Set(workoutHistory.filter(e => e.workout !== 'Rest Day').map(e => getFormattedDate(new Date(e.id_timestamp || e.timestamp))))].sort((a, b) => new Date(b) - new Date(a));
+        let streak = 0; if (uniqueWorkoutDays.length > 0) { const today = new Date(); const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); if (isSameDay(new Date(uniqueWorkoutDays[0]), today) || isSameDay(new Date(uniqueWorkoutDays[0]), yesterday)) { streak = 1; for (let i = 0; i < uniqueWorkoutDays.length - 1; i++) { if ((new Date(uniqueWorkoutDays[i]) - new Date(uniqueWorkoutDays[i+1])) / 86400000 === 1) streak++; else break; } } }
         document.getElementById('streak-stat').textContent = streak;
-
-        const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear();
-        const monthCount = workoutHistory.filter(e => { const d = new Date(e.id_timestamp); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; }).length;
+        
+        // FIX: Use fallback for timestamp
+        const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear(); const monthCount = workoutHistory.filter(e => { const d = new Date(e.id_timestamp || e.timestamp); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; }).length;
         document.getElementById('month-stat').textContent = monthCount;
 
         const counts = workoutHistory.filter(e => e.workout !== 'Rest Day').reduce((acc, e) => { acc[e.workout] = (acc[e.workout] || 0) + 1; return acc; }, {});
@@ -119,28 +104,26 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     const renderRecentActivity = () => {
-        const yesterday = new Date(); yesterday.setDate(new Date().getDate() - 1);
-        const dayBefore = new Date(); dayBefore.setDate(new Date().getDate() - 2);
-        const createHTML = (date) => {
-            const workouts = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp), date));
-            return workouts.length > 0 ? workouts.map(e => `<div class="activity-log-item">${e.workout}</div>`).join('') : '<div class="placeholder">No activity</div>';
+        const yesterday = new Date(); yesterday.setDate(new Date().getDate() - 1); const dayBefore = new Date(); dayBefore.setDate(new Date().getDate() - 2);
+        const createHTML = (date) => { 
+            // FIX: Use fallback for timestamp
+            const workouts = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp || e.timestamp), date)); 
+            return workouts.length > 0 ? workouts.map(e => `<div class="activity-log-item">${e.workout}</div>`).join('') : '<div class="placeholder">No activity</div>'; 
         };
-        document.getElementById('yesterday-activity').innerHTML = createHTML(yesterday);
-        document.getElementById('day-before-yesterday-activity').innerHTML = createHTML(dayBefore);
+        document.getElementById('yesterday-activity').innerHTML = createHTML(yesterday); document.getElementById('day-before-yesterday-activity').innerHTML = createHTML(dayBefore);
     };
 
     const renderCalendar = () => {
         dom.calendarGrid.innerHTML = "";
-        const month = currentDate.getMonth(); const year = currentDate.getFullYear();
-        dom.currentMonthEl.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+        const month = currentDate.getMonth(); const year = currentDate.getFullYear(); dom.currentMonthEl.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
         const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
         for (let i = 0; i < firstDay; i++) dom.calendarGrid.innerHTML += `<div class="calendar-day other-month"></div>`;
         for (let i = 1; i <= daysInMonth; i++) {
-            const day = new Date(year, month, i);
-            const dayEl = document.createElement("div"); dayEl.className = "calendar-day"; dayEl.textContent = i;
-            if (workoutHistory.some(e => isSameDay(new Date(e.id_timestamp), day))) {
-                dayEl.classList.add("has-workout");
-                dayEl.addEventListener('click', () => showDayDetailsModal(day));
+            const day = new Date(year, month, i); const dayEl = document.createElement("div"); dayEl.className = "calendar-day"; dayEl.textContent = i;
+            // FIX: Use fallback for timestamp
+            if (workoutHistory.some(e => isSameDay(new Date(e.id_timestamp || e.timestamp), day))) { 
+                dayEl.classList.add("has-workout"); 
+                dayEl.addEventListener('click', () => showDayDetailsModal(day)); 
             }
             if (isSameDay(day, new Date())) dayEl.classList.add("today");
             dom.calendarGrid.appendChild(dayEl);
@@ -148,26 +131,24 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const renderChart = () => {
-        if (myChart) myChart.destroy();
-        const counts = customWorkouts.filter(w => w !== 'Rest Day').reduce((acc, w) => ({ ...acc, [w]: 0 }), {});
+        if (myChart) myChart.destroy(); const counts = customWorkouts.filter(w => w !== 'Rest Day').reduce((acc, w) => ({ ...acc, [w]: 0 }), {});
         workoutHistory.forEach(e => { if (counts.hasOwnProperty(e.workout)) counts[e.workout]++; });
-        myChart = new Chart(dom.chartCanvas, {
-            type: 'doughnut', data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: ['#00bfff', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#3498db', '#1abc9c'], borderWidth: 0 }] },
-            options: { responsive: true, plugins: { legend: { position: 'top', labels: { color: document.body.classList.contains('light-mode') ? '#212529' : '#e0e0e0' } } } }
-        });
+        myChart = new Chart(dom.chartCanvas, { type: 'doughnut', data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: ['#00bfff', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#3498db', '#1abc9c'], borderWidth: 0 }] }, options: { responsive: true, plugins: { legend: { position: 'top', labels: { color: document.body.classList.contains('light-mode') ? '#212529' : '#e0e0e0' } } } } });
     };
 
     const renderHistoryList = () => {
         dom.historyList.innerHTML = workoutHistory.length ? '' : '<p>No history yet. Go work out!</p>';
         if (!workoutHistory.length) return;
         const grouped = workoutHistory.reduce((acc, entry) => {
-            const date = getFormattedDate(new Date(entry.id_timestamp));
+            // FIX: Use fallback for timestamp
+            const date = getFormattedDate(new Date(entry.id_timestamp || entry.timestamp));
             if (!acc[date]) acc[date] = []; acc[date].push(entry); return acc;
         }, {});
         Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a)).forEach(dateStr => {
             const card = document.createElement('li'); card.className = 'date-group-card';
-            const entriesHTML = grouped[dateStr].sort((a,b) => b.id_timestamp - a.id_timestamp).map(entry => `
-                <div class="workout-entry" data-timestamp="${entry.id_timestamp}">
+            // FIX: Use fallback for timestamp for sorting and data-attribute
+            const entriesHTML = grouped[dateStr].sort((a,b) => (b.id_timestamp || b.timestamp) - (a.id_timestamp || a.timestamp)).map(entry => `
+                <div class="workout-entry" data-timestamp="${entry.id_timestamp || entry.timestamp}">
                     <div class="workout-entry-details">
                         <div class="name">${entry.workout}</div>
                         <div class="time">${entry.timestamp}</div> 
@@ -186,17 +167,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const showDayDetailsModal = (date) => {
         document.getElementById('modal-date').textContent = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-        document.getElementById('modal-list').innerHTML = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp), date)).map(e => `<li>${e.workout}</li>`).join('');
+        // FIX: Use fallback for timestamp
+        document.getElementById('modal-list').innerHTML = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp || e.timestamp), date)).map(e => `<li>${e.workout}</li>`).join('');
         showModal(dom.modalContainer);
     };
 
-    const renderCustomWorkoutsList = () => {
-        document.getElementById('custom-workouts-list').innerHTML = customWorkouts.map(w => `<li><span>${w}</span><button class="delete-workout-btn" data-workout="${w}">&times;</button></li>`).join('');
-    };
+    const renderCustomWorkoutsList = () => { document.getElementById('custom-workouts-list').innerHTML = customWorkouts.map(w => `<li><span>${w}</span><button class="delete-workout-btn" data-workout="${w}">&times;</button></li>`).join(''); };
 
     const showEditLogModal = (timestamp) => {
         currentLogTimestampToEdit = timestamp;
-        const logEntry = workoutHistory.find(e => e.id_timestamp === timestamp);
+        // FIX: Use fallback for timestamp
+        const logEntry = workoutHistory.find(e => (e.id_timestamp || e.timestamp) === timestamp);
         if (!logEntry) return;
         document.getElementById('edit-log-time').textContent = `Logged at: ${logEntry.timestamp}`;
         document.getElementById('edit-workout-select').innerHTML = customWorkouts.map(w => `<option value="${w}" ${w === logEntry.workout ? 'selected' : ''}>${w}</option>`).join('');
@@ -220,38 +201,18 @@ document.addEventListener("DOMContentLoaded", () => {
         dom.prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
         dom.nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
         
-        dom.clearHistoryBtn.addEventListener('click', async () => {
-             if(confirm("Are you sure you want to delete ALL workout history? This cannot be undone.")){ 
-                workoutHistory = []; 
-                updateDashboard(); 
-                renderHistoryList();
-                await saveCloudData([]); 
-            }
-        });
+        dom.clearHistoryBtn.addEventListener('click', async () => { if(confirm("Are you sure?")){ workoutHistory = []; updateDashboard(); renderHistoryList(); await saveCloudData([]); } });
         
         document.querySelectorAll('.modal-container').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('.close-modal-btn')) hideModal(m); }));
-
         document.getElementById('edit-workouts-btn').addEventListener('click', () => { renderCustomWorkoutsList(); showModal(dom.editWorkoutsModal); });
         
-        document.getElementById('add-workout-form').addEventListener('submit', e => {
-            e.preventDefault(); const input = document.getElementById('new-workout-name');
-            const newWorkout = input.value.trim();
-            if (newWorkout && !customWorkouts.find(w => w.toLowerCase() === newWorkout.toLowerCase())) {
-                customWorkouts.push(newWorkout); saveCustomWorkouts();
-                renderCustomWorkoutsList(); renderWorkoutChoices(); input.value = '';
-            }
-        });
-
-        document.getElementById('custom-workouts-list').addEventListener('click', e => {
-            if (e.target.classList.contains('delete-workout-btn')) {
-                customWorkouts = customWorkouts.filter(w => w !== e.target.dataset.workout);
-                saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices();
-            }
-        });
+        document.getElementById('add-workout-form').addEventListener('submit', e => { e.preventDefault(); const input = document.getElementById('new-workout-name'); const newWorkout = input.value.trim(); if (newWorkout && !customWorkouts.find(w => w.toLowerCase() === newWorkout.toLowerCase())) { customWorkouts.push(newWorkout); saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices(); input.value = ''; } });
+        document.getElementById('custom-workouts-list').addEventListener('click', e => { if (e.target.classList.contains('delete-workout-btn')) { customWorkouts = customWorkouts.filter(w => w !== e.target.dataset.workout); saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices(); } });
 
         document.getElementById('save-log-change-btn').addEventListener('click', async () => {
             const newWorkout = document.getElementById('edit-workout-select').value;
-            const entryIndex = workoutHistory.findIndex(e => e.id_timestamp === currentLogTimestampToEdit);
+            // FIX: Use fallback for timestamp
+            const entryIndex = workoutHistory.findIndex(e => (e.id_timestamp || e.timestamp) === currentLogTimestampToEdit);
             if (entryIndex > -1) workoutHistory[entryIndex].workout = newWorkout;
             renderHistoryList(); updateDashboard();
             hideModal(dom.editLogModal);
@@ -259,8 +220,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         
         document.getElementById('delete-log-entry-btn').addEventListener('click', async () => {
-            if (confirm('Are you sure you want to delete this log entry?')) {
-                workoutHistory = workoutHistory.filter(e => e.id_timestamp !== currentLogTimestampToEdit);
+            if (confirm('Are you sure?')) {
+                // FIX: Use fallback for timestamp
+                workoutHistory = workoutHistory.filter(e => (e.id_timestamp || e.timestamp) !== currentLogTimestampToEdit);
                 renderHistoryList(); updateDashboard();
                 hideModal(dom.editLogModal);
                 await saveCloudData(workoutHistory);
