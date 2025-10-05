@@ -1,7 +1,7 @@
 // ===================================================================
 // PASTE YOUR API KEY AND YOUR BIN ID IS ALREADY HERE
 // ===================================================================
-const API_KEY = 'PASTE_YOUR_API_KEY_HERE';
+const API_KEY = '$2a$10$Ezw2YUC0T.QE3NtmgJuJ9.KnA2IurJf9BZyuigm.3GccUpa56gAM.';
 const BIN_ID = '68e2270dae596e708f0692a6';
 // ===================================================================
 
