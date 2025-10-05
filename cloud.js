@@ -1,17 +1,16 @@
-import { NhostClient } from 'https://cdn.jsdelivr.net/npm/@nhost/nhost-js@3.1.0/+esm'
+import { NhostClient } from 'https://esm.sh/@nhost/nhost-js'
 
 // ===================================================================
-// YOUR SPECIFIC BACKEND URL IS ALREADY INCLUDED
+// YOUR SPECIFIC PROJECT INFO FOR NHOST v4
 // ===================================================================
-const NHOST_BACKEND_URL = 'https://selzxrsfvcgyshuwvlrn.nhost.run'; 
-const NHOST_PUBLIC_ANON_KEY = '155264639a850117282258288544d673';
+const NHOST_SUBDOMAIN = 'selzxrsfvcgyshuwvlrn'; 
+const NHOST_REGION = 'ap-south-1';
 // ===================================================================
 
-// Initialize the Nhost client
+// Initialize the Nhost client using the new v4 method
 const nhost = new NhostClient({
-  backendUrl: NHOST_BACKEND_URL,
-  clientStorageType: 'localStorage',
-  clientStorage: window.localStorage,
+  subdomain: NHOST_SUBDOMAIN,
+  region: NHOST_REGION
 });
 
 /**
