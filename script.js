@@ -1,15 +1,15 @@
-// ===================================================================================
-// FULL FINAL SCRIPT.JS (with Traditional Time Formatting)
-// ===================================================================================
 import { loadData as loadCloudData, saveData as saveCloudData } from './cloud.js';
 
 document.addEventListener("DOMContentLoaded", () => {
+    // --- STATE MANAGEMENT ---
     let workoutHistory = [];
     let customWorkouts = [];
     let myChart;
     let currentLogTimestampToEdit = null;
 
     const defaultWorkouts = ["Legs", "Shoulders", "Chest", "Triceps", "Back", "Biceps", "Abs", "Rest Day"];
+
+    // --- DOM ELEMENT SELECTORS ---
     const dom = {
         themeToggle: document.getElementById("theme-toggle"),
         dashboardView: document.getElementById("dashboard-view"),
@@ -31,41 +31,62 @@ document.addEventListener("DOMContentLoaded", () => {
         syncStatus: document.getElementById('sync-status'),
     };
 
+    // --- DATE & TIME HELPERS ---
     let currentDate = new Date();
     const getFormattedDate = (date) => date.toISOString().split('T')[0];
     const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 
-    const formatTimestampToTraditional = (timestamp) => {
+    /**
+     * NEW: Creates the exact string format you requested.
+     */
+    const createTraditionalTimestamp = (timestamp) => {
         const date = new Date(timestamp);
-        const options = {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-            hour: 'numeric', minute: 'numeric', second: 'numeric',
-            timeZone: 'Asia/Kolkata', timeZoneName: 'short', hour12: true
-        };
-        return date.toLocaleString('en-IN', options);
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata' };
+        const timeOptions = { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true, timeZone: 'Asia/Kolkata', timeZoneName: 'short' };
+        
+        const dateString = date.toLocaleDateString('en-GB', dateOptions);
+        const timeString = date.toLocaleTimeString('en-US', timeOptions);
+
+        // Correctly format the month to be title-cased as in the example
+        const parts = dateString.split(' ');
+        parts[2] = parts[2].charAt(0).toUpperCase() + parts[2].slice(1);
+        const finalDateString = parts.join(' ');
+        
+        return `${finalDateString} at ${timeString}`;
     };
 
+    // --- DATA PERSISTENCE & THEME ---
     const saveCustomWorkouts = () => localStorage.setItem("customWorkouts", JSON.stringify(customWorkouts));
     const loadCustomWorkouts = () => { customWorkouts = JSON.parse(localStorage.getItem("customWorkouts")) || [...defaultWorkouts]; };
     const applyTheme = (theme) => { document.body.classList.toggle("light-mode", theme === 'light'); dom.themeToggle.checked = theme === 'light'; };
     const toggleTheme = () => { const isLightMode = document.body.classList.toggle("light-mode"); localStorage.setItem("theme", isLightMode ? 'light' : 'dark'); };
+
+    // --- VIEW SWITCHING ---
     const showDashboard = () => { dom.dashboardView.classList.remove("hidden"); dom.logView.classList.add("hidden"); };
     const showLogView = () => { dom.dashboardView.classList.add("hidden"); dom.logView.classList.remove("hidden"); renderHistoryList(); };
     
+    // --- LOGGING WORKOUTS ---
     const logWorkout = async (workoutName) => {
-        const now = Date.now();
-        const logEntry = { timestamp: now, workout: workoutName, formattedTime: formatTimestampToTraditional(now) };
+        const numericTimestamp = Date.now();
+        const logEntry = { 
+            id_timestamp: numericTimestamp, // The reliable number for calculations
+            timestamp: createTraditionalTimestamp(numericTimestamp), // The string you want to see
+            workout: workoutName 
+        };
         workoutHistory.push(logEntry);
         updateDashboard();
         await saveCloudData(workoutHistory);
     };
 
+    // --- MASTER UPDATE FUNCTION ---
     const updateDashboard = () => { renderWorkoutChoices(); renderStats(); renderRecentActivity(); renderCalendar(); renderChart(); };
-    
+
+    // --- RENDERING FUNCTIONS ---
     const renderWorkoutChoices = () => {
         dom.workoutChoicesContainer.innerHTML = "";
         const today = new Date();
-        const workoutsLoggedToday = workoutHistory.filter(e => isSameDay(new Date(e.timestamp), today)).map(e => e.workout);
+        // NOTE: We use the numeric 'id_timestamp' for all logic
+        const workoutsLoggedToday = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp), today)).map(e => e.workout);
         const isRestDayLogged = workoutsLoggedToday.includes('Rest Day');
         customWorkouts.forEach(workout => {
             const btn = document.createElement("button"); btn.className = "workout-choice"; btn.textContent = workout;
@@ -78,10 +99,11 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     const renderStats = () => {
-        const uniqueWorkoutDays = [...new Set(workoutHistory.filter(e => e.workout !== 'Rest Day').map(e => getFormattedDate(new Date(e.timestamp))))].sort((a, b) => new Date(b) - new Date(a));
+        // NOTE: All logic uses 'id_timestamp'
+        const uniqueWorkoutDays = [...new Set(workoutHistory.filter(e => e.workout !== 'Rest Day').map(e => getFormattedDate(new Date(e.id_timestamp))))].sort((a, b) => new Date(b) - new Date(a));
         let streak = 0; if (uniqueWorkoutDays.length > 0) { const today = new Date(); const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); if (isSameDay(new Date(uniqueWorkoutDays[0]), today) || isSameDay(new Date(uniqueWorkoutDays[0]), yesterday)) { streak = 1; for (let i = 0; i < uniqueWorkoutDays.length - 1; i++) { if ((new Date(uniqueWorkoutDays[i]) - new Date(uniqueWorkoutDays[i+1])) / 86400000 === 1) streak++; else break; } } }
         document.getElementById('streak-stat').textContent = streak;
-        const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear(); const monthCount = workoutHistory.filter(e => { const d = new Date(e.timestamp); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; }).length;
+        const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear(); const monthCount = workoutHistory.filter(e => { const d = new Date(e.id_timestamp); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; }).length;
         document.getElementById('month-stat').textContent = monthCount;
         const counts = workoutHistory.filter(e => e.workout !== 'Rest Day').reduce((acc, e) => { acc[e.workout] = (acc[e.workout] || 0) + 1; return acc; }, {});
         const favorite = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, '-');
@@ -90,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const renderRecentActivity = () => {
         const yesterday = new Date(); yesterday.setDate(new Date().getDate() - 1); const dayBefore = new Date(); dayBefore.setDate(new Date().getDate() - 2);
-        const createHTML = (date) => { const workouts = workoutHistory.filter(e => isSameDay(new Date(e.timestamp), date)); return workouts.length > 0 ? workouts.map(e => `<div class="activity-log-item">${e.workout}</div>`).join('') : '<div class="placeholder">No activity</div>'; };
+        const createHTML = (date) => { const workouts = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp), date)); return workouts.length > 0 ? workouts.map(e => `<div class="activity-log-item">${e.workout}</div>`).join('') : '<div class="placeholder">No activity</div>'; };
         document.getElementById('yesterday-activity').innerHTML = createHTML(yesterday); document.getElementById('day-before-yesterday-activity').innerHTML = createHTML(dayBefore);
     };
 
@@ -101,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
         for (let i = 0; i < firstDay; i++) dom.calendarGrid.innerHTML += `<div class="calendar-day other-month"></div>`;
         for (let i = 1; i <= daysInMonth; i++) {
             const day = new Date(year, month, i); const dayEl = document.createElement("div"); dayEl.className = "calendar-day"; dayEl.textContent = i;
-            if (workoutHistory.some(e => isSameDay(new Date(e.timestamp), day))) { dayEl.classList.add("has-workout"); dayEl.addEventListener('click', () => showDayDetailsModal(day)); }
+            if (workoutHistory.some(e => isSameDay(new Date(e.id_timestamp), day))) { dayEl.classList.add("has-workout"); dayEl.addEventListener('click', () => showDayDetailsModal(day)); }
             if (isSameDay(day, new Date())) dayEl.classList.add("today");
             dom.calendarGrid.appendChild(dayEl);
         }
@@ -117,16 +139,16 @@ document.addEventListener("DOMContentLoaded", () => {
         dom.historyList.innerHTML = workoutHistory.length ? '' : '<p>No history yet. Go work out!</p>';
         if (!workoutHistory.length) return;
         const grouped = workoutHistory.reduce((acc, entry) => {
-            const date = getFormattedDate(new Date(entry.timestamp));
+            const date = getFormattedDate(new Date(entry.id_timestamp));
             if (!acc[date]) acc[date] = []; acc[date].push(entry); return acc;
         }, {});
         Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a)).forEach(dateStr => {
             const card = document.createElement('li'); card.className = 'date-group-card';
-            const entriesHTML = grouped[dateStr].sort((a,b) => b.timestamp - a.timestamp).map(entry => `
-                <div class="workout-entry" data-timestamp="${entry.timestamp}">
+            const entriesHTML = grouped[dateStr].sort((a,b) => b.id_timestamp - a.id_timestamp).map(entry => `
+                <div class="workout-entry" data-timestamp="${entry.id_timestamp}">
                     <div class="workout-entry-details">
                         <div class="name">${entry.workout}</div>
-                        <div class="time">${entry.formattedTime || formatTimestampToTraditional(entry.timestamp)}</div>
+                        <div class="time">${entry.timestamp}</div> 
                     </div>
                     <div class="history-item-actions"><button class="icon-btn edit-log-btn"><i class="fas fa-pencil-alt"></i></button></div>
                 </div>`).join('');
@@ -141,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const showDayDetailsModal = (date) => {
         document.getElementById('modal-date').textContent = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-        document.getElementById('modal-list').innerHTML = workoutHistory.filter(e => isSameDay(new Date(e.timestamp), date)).map(e => `<li>${e.workout}</li>`).join('');
+        document.getElementById('modal-list').innerHTML = workoutHistory.filter(e => isSameDay(new Date(e.id_timestamp), date)).map(e => `<li>${e.workout}</li>`).join('');
         showModal(dom.modalContainer);
     };
 
@@ -149,9 +171,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const showEditLogModal = (timestamp) => {
         currentLogTimestampToEdit = timestamp;
-        const logEntry = workoutHistory.find(e => e.timestamp === timestamp);
+        const logEntry = workoutHistory.find(e => e.id_timestamp === timestamp);
         if (!logEntry) return;
-        document.getElementById('edit-log-time').textContent = `Logged at: ${logEntry.formattedTime || formatTimestampToTraditional(logEntry.timestamp)}`;
+        document.getElementById('edit-log-time').textContent = `Logged at: ${logEntry.timestamp}`;
         document.getElementById('edit-workout-select').innerHTML = customWorkouts.map(w => `<option value="${w}" ${w === logEntry.workout ? 'selected' : ''}>${w}</option>`).join('');
         showModal(dom.editLogModal);
     };
@@ -171,25 +193,18 @@ document.addEventListener("DOMContentLoaded", () => {
         dom.backToDashboardBtn.addEventListener("click", showDashboard);
         dom.prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
         dom.nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-        dom.clearHistoryBtn.addEventListener('click', async () => { if(confirm("Are you sure you want to delete ALL workout history?")){ workoutHistory = []; updateDashboard(); renderHistoryList(); await saveCloudData([]); }});
+        
+        dom.clearHistoryBtn.addEventListener('click', async () => { if(confirm("Are you sure?")){ workoutHistory = []; updateDashboard(); renderHistoryList(); await saveCloudData([]); } });
         
         document.querySelectorAll('.modal-container').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('.close-modal-btn')) hideModal(m); }));
-
         document.getElementById('edit-workouts-btn').addEventListener('click', () => { renderCustomWorkoutsList(); showModal(dom.editWorkoutsModal); });
         
-        document.getElementById('add-workout-form').addEventListener('submit', e => {
-            e.preventDefault(); const input = document.getElementById('new-workout-name');
-            const newWorkout = input.value.trim();
-            if (newWorkout && !customWorkouts.find(w => w.toLowerCase() === newWorkout.toLowerCase())) { customWorkouts.push(newWorkout); saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices(); input.value = ''; }
-        });
-
-        document.getElementById('custom-workouts-list').addEventListener('click', e => {
-            if (e.target.classList.contains('delete-workout-btn')) { customWorkouts = customWorkouts.filter(w => w !== e.target.dataset.workout); saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices(); }
-        });
+        document.getElementById('add-workout-form').addEventListener('submit', e => { e.preventDefault(); const input = document.getElementById('new-workout-name'); const newWorkout = input.value.trim(); if (newWorkout && !customWorkouts.find(w => w.toLowerCase() === newWorkout.toLowerCase())) { customWorkouts.push(newWorkout); saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices(); input.value = ''; } });
+        document.getElementById('custom-workouts-list').addEventListener('click', e => { if (e.target.classList.contains('delete-workout-btn')) { customWorkouts = customWorkouts.filter(w => w !== e.target.dataset.workout); saveCustomWorkouts(); renderCustomWorkoutsList(); renderWorkoutChoices(); } });
 
         document.getElementById('save-log-change-btn').addEventListener('click', async () => {
             const newWorkout = document.getElementById('edit-workout-select').value;
-            const entryIndex = workoutHistory.findIndex(e => e.timestamp === currentLogTimestampToEdit);
+            const entryIndex = workoutHistory.findIndex(e => e.id_timestamp === currentLogTimestampToEdit);
             if (entryIndex > -1) workoutHistory[entryIndex].workout = newWorkout;
             renderHistoryList(); updateDashboard();
             hideModal(dom.editLogModal);
@@ -197,8 +212,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         
         document.getElementById('delete-log-entry-btn').addEventListener('click', async () => {
-            if (confirm('Are you sure you want to delete this log entry?')) {
-                workoutHistory = workoutHistory.filter(e => e.timestamp !== currentLogTimestampToEdit);
+            if (confirm('Are you sure?')) {
+                workoutHistory = workoutHistory.filter(e => e.id_timestamp !== currentLogTimestampToEdit);
                 renderHistoryList(); updateDashboard();
                 hideModal(dom.editLogModal);
                 await saveCloudData(workoutHistory);
