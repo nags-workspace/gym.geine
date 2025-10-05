@@ -1,5 +1,5 @@
 // ===================================================================
-// Paste the Web app URL you copied from Google Apps Script deployment
+// PASTE THE SAME WEB APP URL YOU USED BEFORE
 // ===================================================================
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXZl7lzNdOnx_PATIDc-v8S-2evF2VYHEvGGbfJhwU_MUocIsG63sKTWBirdwWYdLNLQ/exec";
 // ===================================================================
@@ -7,57 +7,57 @@ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXZl7lzNdOnx_PATID
 
 /**
  * Fetches all workout history from the Google Sheet.
- * @returns {Promise<Array>} A promise that resolves to the workout history array.
  */
 async function loadData() {
-    console.log("Loading data from cloud...");
     try {
         const response = await fetch(WEB_APP_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
-        
-        // Convert timestamp from string back to number if needed
-        return data.map(row => ({
-            ...row,
-            timestamp: Number(row.timestamp)
-        }));
+        return data.map(row => ({ ...row, timestamp: Number(row.timestamp) }));
     } catch (error) {
-        console.error("Failed to load data from spreadsheet:", error);
-        alert("Could not load data from the cloud. Please check your connection and configuration.");
-        return []; // Return an empty array on failure
+        console.error("Failed to load data:", error);
+        return [];
     }
 }
 
 /**
- * Saves a single workout log entry to the Google Sheet.
- * @param {object} logEntry - The workout entry to save (e.g., { timestamp: 123, workout: 'Chest' }).
- * @returns {Promise<object>} A promise that resolves to the server's response.
+ * Sends a generic request to the Google Sheet API.
+ * @param {string} action - The command to execute ('create', 'update', 'delete').
+ * @param {object} data - The payload for the action.
  */
-async function saveData(logEntry) {
-    console.log("Saving data to cloud:", logEntry);
+async function sendRequest(action, data) {
     try {
         const response = await fetch(WEB_APP_URL, {
             method: 'POST',
-            mode: 'no-cors', // Important for Google Apps Script web apps
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(logEntry)
+            body: JSON.stringify({ action, data }),
+            headers: { 'Content-Type': 'application/json' },
         });
-        
-        // Note: Due to 'no-cors' and Google Script redirects, we can't easily read the response.
-        // We will assume success if no network error is thrown.
-        console.log("Save request sent.");
-        return { status: "success" };
-        
+        return await response.json();
     } catch (error) {
-        console.error("Failed to save data to spreadsheet:", error);
-        alert("Could not save your workout to the cloud.");
-        return { status: "error", message: error.message };
+        console.error(`Failed to ${action} data:`, error);
+        return { status: 'error', message: error.message };
     }
 }
 
-// Export the functions to be used in script.js
-export { loadData, saveData };
+/**
+ * Saves a new workout log entry.
+ */
+function createWorkoutLog(logEntry) {
+    return sendRequest('create', logEntry);
+}
+
+/**
+ * Updates an existing workout log entry.
+ */
+function updateWorkoutLog(timestamp, newWorkout) {
+    return sendRequest('update', { timestamp, newWorkout });
+}
+
+/**
+ * Deletes a workout log entry.
+ */
+function deleteWorkoutLog(timestamp) {
+    return sendRequest('delete', { timestamp });
+}
+
+export { loadData, createWorkoutLog, updateWorkoutLog, deleteWorkoutLog };
